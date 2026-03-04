@@ -121,9 +121,16 @@ func (fs *FileSystem) Preview(ctx context.Context, id uint, isText bool) (*respo
 		}, nil
 	}
 
-	// 否则重定向到签名的预览URL
-	ttl := model.GetIntSetting("preview_timeout", 60)
-	previewURL, err := fs.SignURL(ctx, &fs.FileTarget[0], int64(ttl), false)
+	// 否则重定向到签名URL。S3策略下与下载接口保持一致。
+	timeoutSetting := "preview_timeout"
+	isDownload := false
+	if fs.Policy.Type == "s3" {
+		timeoutSetting = "download_timeout"
+		isDownload = true
+	}
+
+	ttl := model.GetIntSetting(timeoutSetting, 60)
+	previewURL, err := fs.SignURL(ctx, &fs.FileTarget[0], int64(ttl), isDownload)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 	"errors"
+	"net/url"
 	"os"
 	"testing"
 
@@ -10,12 +11,57 @@ import (
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/auth"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
+	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/response"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 )
+
+type previewSourceHandler struct {
+	lastTTL        int64
+	lastIsDownload bool
+}
+
+func (h *previewSourceHandler) Put(ctx context.Context, file fsctx.FileHeader) error {
+	return nil
+}
+
+func (h *previewSourceHandler) Delete(ctx context.Context, files []string) ([]string, error) {
+	return nil, nil
+}
+
+func (h *previewSourceHandler) Get(ctx context.Context, path string) (response.RSCloser, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (h *previewSourceHandler) Thumb(ctx context.Context, file *model.File) (*response.ContentResponse, error) {
+	return nil, nil
+}
+
+func (h *previewSourceHandler) Source(ctx context.Context, path string, ttl int64, isDownload bool, speed int) (string, error) {
+	h.lastTTL = ttl
+	h.lastIsDownload = isDownload
+	uri := "https://example.com/file"
+	if isDownload {
+		uri += "?response-content-disposition=attachment"
+	}
+	return uri, nil
+}
+
+func (h *previewSourceHandler) Token(ctx context.Context, ttl int64, uploadSession *serializer.UploadSession, file fsctx.FileHeader) (*serializer.UploadCredential, error) {
+	return &serializer.UploadCredential{}, nil
+}
+
+func (h *previewSourceHandler) CancelToken(ctx context.Context, uploadSession *serializer.UploadSession) error {
+	return nil
+}
+
+func (h *previewSourceHandler) List(ctx context.Context, path string, recursive bool) ([]response.Object, error) {
+	return nil, nil
+}
 
 func TestFileSystem_AddFile(t *testing.T) {
 	asserts := assert.New(t)
@@ -637,6 +683,52 @@ func TestFileSystem_Preview(t *testing.T) {
 		resp, err := fs.Preview(ctx, 1, true)
 		asserts.Equal(ErrFileSizeTooBig, err)
 		asserts.Nil(resp)
+	}
+
+	// S3策略下使用与下载一致的签名参数
+	{
+		oldMode := conf.SystemConfig.Mode
+		conf.SystemConfig.Mode = "slave"
+		defer func() {
+			conf.SystemConfig.Mode = oldMode
+		}()
+
+		handler := &previewSourceHandler{}
+		fs := FileSystem{
+			User:    &model.User{},
+			Handler: handler,
+		}
+		fs.FileTarget = []model.File{
+			{
+				Name:       "file1.txt",
+				SourceName: "tests/file1.txt",
+				PolicyID:   1,
+				Policy: model.Policy{
+					Model:      gorm.Model{ID: 1},
+					Type:       "s3",
+					Server:     "https://s3.amazonaws.com",
+					BucketName: "test-bucket",
+					OptionsSerialized: model.PolicyOption{
+						Region: "us-east-1",
+					},
+				},
+			},
+		}
+		fs.Policy = &fs.FileTarget[0].Policy
+		asserts.NoError(cache.Set("setting_preview_timeout", "233", 0))
+		asserts.NoError(cache.Set("setting_download_timeout", "20", 0))
+
+		resp, err := fs.Preview(ctx, 1, false)
+		asserts.NoError(err)
+		asserts.NotNil(resp)
+		asserts.True(resp.Redirect)
+		asserts.Equal(20, resp.MaxAge)
+		asserts.True(handler.lastIsDownload)
+		asserts.Equal(int64(20), handler.lastTTL)
+
+		signedURL, parseErr := url.Parse(resp.URL)
+		asserts.NoError(parseErr)
+		asserts.NotEmpty(signedURL.Query().Get("response-content-disposition"))
 	}
 }
 
