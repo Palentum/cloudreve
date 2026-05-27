@@ -60,6 +60,18 @@ func TestWopiAccessValidation(t *testing.T) {
 		asserts.True(c.IsAborted())
 	}
 
+	// token mismatch
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest("GET", "/wopi/files/1?access_token=", nil)
+		query := c.Request.URL.Query()
+		query.Set(wopi.AccessTokenQuery, "sessionID.wrongkey")
+		c.Request.URL.RawQuery = query.Encode()
+		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1, AccessToken: "sessionID.key"}, 0)
+		testFunc(c)
+		asserts.True(c.IsAborted())
+	}
+
 	// user key not exist
 	{
 		c, _ := gin.CreateTestContext(rec)
@@ -67,7 +79,7 @@ func TestWopiAccessValidation(t *testing.T) {
 		query := c.Request.URL.Query()
 		query.Set(wopi.AccessTokenQuery, "sessionID.key")
 		c.Request.URL.RawQuery = query.Encode()
-		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1}, 0)
+		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1, AccessToken: "sessionID.key"}, 0)
 		mock.ExpectQuery("SELECT(.+)users(.+)").WillReturnError(errors.New("error"))
 		testFunc(c)
 		asserts.True(c.IsAborted())
@@ -81,7 +93,7 @@ func TestWopiAccessValidation(t *testing.T) {
 		query := c.Request.URL.Query()
 		query.Set(wopi.AccessTokenQuery, "sessionID.key")
 		c.Request.URL.RawQuery = query.Encode()
-		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1}, 0)
+		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1, AccessToken: "sessionID.key"}, 0)
 		mock.ExpectQuery("SELECT(.+)users(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 		c.Set("object_id", uint(0))
 		testFunc(c)
@@ -96,7 +108,7 @@ func TestWopiAccessValidation(t *testing.T) {
 		query := c.Request.URL.Query()
 		query.Set(wopi.AccessTokenQuery, "sessionID.key")
 		c.Request.URL.RawQuery = query.Encode()
-		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1}, 0)
+		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1, AccessToken: "sessionID.key"}, 0)
 		mock.ExpectQuery("SELECT(.+)users(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 		c.Set("object_id", uint(1))
 		testFunc(c)
