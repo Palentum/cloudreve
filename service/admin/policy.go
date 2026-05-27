@@ -244,6 +244,12 @@ func (service *SlaveTestService) Test() serializer.Response {
 		return serializer.ParamErr("Failed to parse slave node server URL: "+err.Error(), nil)
 	}
 
+	// SSRF 防护：校验目标主机不属于高危地址范围，获取已解析 IP 用于传输层防 DNS Rebinding
+	resolvedIPs, err := util.ValidateHostNotPrivate(slave.Hostname())
+	if err != nil {
+		return serializer.ParamErr("不允许访问保留网络地址: "+err.Error(), nil)
+	}
+
 	controller, _ := url.Parse("/api/v3/slave/ping")
 
 	// 请求正文
@@ -258,6 +264,7 @@ func (service *SlaveTestService) Test() serializer.Response {
 		slave.ResolveReference(controller).String(),
 		bytes.NewReader(bodyByte),
 		request.WithTimeout(time.Duration(10)*time.Second),
+		request.WithSafeTransport(util.NewSSRFSafeTransport(resolvedIPs)),
 		request.WithCredential(
 			auth.HMACAuth{SecretKey: []byte(service.Secret)},
 			int64(model.GetIntSetting("slave_api_timeout", 60)),

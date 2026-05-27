@@ -27,6 +27,7 @@ type options struct {
 	tpsLimiterToken string
 	tps             float64
 	tpsBurst        int
+	httpTransport   *http.Transport
 }
 
 type optionFunc func(*options)
@@ -133,5 +134,12 @@ func WithTPSLimit(token string, tps float64, burst int) Option {
 			burst = 1
 		}
 		o.tpsBurst = burst
+	})
+}
+
+// WithSafeTransport 使用自定义 Transport，例如 SSRF 防护
+func WithSafeTransport(t *http.Transport) Option {
+	return optionFunc(func(o *options) {
+		o.httpTransport = t
 	})
 }

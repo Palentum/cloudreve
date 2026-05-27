@@ -64,6 +64,9 @@ func (c *HTTPClient) Request(method, target string, body io.Reader, opts ...Opti
 
 	// 创建请求客户端
 	client := &http.Client{Timeout: options.timeout}
+	if options.httpTransport != nil {
+		client.Transport = options.httpTransport
+	}
 
 	// size为0时将body设为nil
 	if options.contentLength == 0 {
