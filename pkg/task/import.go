@@ -7,6 +7,7 @@ import (
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 )
@@ -165,7 +166,7 @@ func (job *ImportTask) Do() {
 			if err != nil {
 				util.Log().Warning("Importing task cannot insert user file %q: %s",
 					object.RelativePath, err)
-				if err == filesystem.ErrInsufficientCapacity {
+				if appErr, ok := err.(serializer.AppError); ok && appErr.Code == serializer.CodeInsufficientCapacity {
 					job.SetErrorMsg("Insufficient storage capacity.", err)
 					return
 				}

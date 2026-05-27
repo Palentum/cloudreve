@@ -25,6 +25,9 @@ const (
 	OveruseBaned
 )
 
+// ErrInsufficientStorage 存储配额不足
+var ErrInsufficientStorage = errors.New("insufficient storage quota")
+
 // User 用户模型
 type User struct {
 	// 表字段
@@ -113,7 +116,7 @@ func (user *User) ChangeStorage(tx *gorm.DB, operator string, size uint64, maxSt
 			return result.Error
 		}
 		if result.RowsAffected == 0 {
-			return errors.New("insufficient storage quota")
+			return ErrInsufficientStorage
 		}
 		return nil
 	}

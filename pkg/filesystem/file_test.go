@@ -73,6 +73,20 @@ func TestFileSystem_AddFile(t *testing.T) {
 		asserts.True(hookExecuted)
 	}
 
+	// 存储配额不足
+	{
+		fs.Hooks = map[string][]Hook{}
+		mock.ExpectBegin()
+		mock.ExpectExec("INSERT(.+)").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("UPDATE(.+)storage(.+)").WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectRollback()
+		f, err := fs.AddFile(context.Background(), &folder, &file)
+		asserts.Error(err)
+		asserts.Nil(f)
+		asserts.Equal(serializer.CodeInsufficientCapacity, err.(serializer.AppError).Code)
+		asserts.NoError(mock.ExpectationsWereMet())
+	}
+
 	// 后置钩子执行失败
 	{
 		hookExecuted := false

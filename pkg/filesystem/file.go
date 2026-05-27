@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -71,6 +72,9 @@ func (fs *FileSystem) AddFile(ctx context.Context, parent *model.Folder, file fs
 	if err != nil {
 		if err := fs.Trigger(ctx, "AfterValidateFailed", file); err != nil {
 			util.Log().Debug("AfterValidateFailed hook execution failed: %s", err)
+		}
+		if errors.Is(err, model.ErrInsufficientStorage) {
+			return nil, ErrInsufficientCapacity.WithError(err)
 		}
 		return nil, ErrFileExisted.WithError(err)
 	}
