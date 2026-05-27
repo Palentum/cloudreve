@@ -34,6 +34,7 @@ func TestFileSystem_AddFile(t *testing.T) {
 			Model: gorm.Model{
 				ID: 1,
 			},
+			Group: model.Group{MaxStorage: 100},
 			Policy: model.Policy{
 				Type: "cos",
 				Model: gorm.Model{

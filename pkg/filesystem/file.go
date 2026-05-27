@@ -66,7 +66,7 @@ func (fs *FileSystem) AddFile(ctx context.Context, parent *model.Folder, file fs
 		UploadSessionID:    uploadInfo.UploadSessionID,
 	}
 
-	err = newFile.Create()
+	err = newFile.Create(fs.User.Group.MaxStorage)
 
 	if err != nil {
 		if err := fs.Trigger(ctx, "AfterValidateFailed", file); err != nil {

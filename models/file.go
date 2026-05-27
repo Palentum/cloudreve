@@ -54,7 +54,7 @@ func init() {
 }
 
 // Create 创建文件记录
-func (file *File) Create() error {
+func (file *File) Create(maxStorage uint64) error {
 	tx := DB.Begin()
 
 	if err := tx.Create(file).Error; err != nil {
@@ -65,7 +65,7 @@ func (file *File) Create() error {
 
 	user := &User{}
 	user.ID = file.UserID
-	if err := user.ChangeStorage(tx, "+", file.Size); err != nil {
+	if err := user.ChangeStorage(tx, "+", file.Size, maxStorage); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -274,7 +274,7 @@ func DeleteFiles(files []*File, uid uint) error {
 	}
 
 	if uid > 0 {
-		if err := user.ChangeStorage(tx, "-", size); err != nil {
+		if err := user.ChangeStorage(tx, "-", size, 0); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -338,7 +338,7 @@ func (file *File) UpdateMetadata(data map[string]string) error {
 
 // UpdateSize 更新文件的大小信息
 // TODO: 全局锁
-func (file *File) UpdateSize(value uint64) error {
+func (file *File) UpdateSize(value uint64, maxStorage uint64) error {
 	tx := DB.Begin()
 	var sizeDelta uint64
 	operator := "+"
@@ -367,7 +367,7 @@ func (file *File) UpdateSize(value uint64) error {
 		return res.Error
 	}
 
-	if err := user.ChangeStorage(tx, operator, sizeDelta); err != nil {
+	if err := user.ChangeStorage(tx, operator, sizeDelta, maxStorage); err != nil {
 		tx.Rollback()
 		return err
 	}

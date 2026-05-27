@@ -70,14 +70,14 @@ func (user *User) DeductionStorage(size uint64) bool {
 	if size == 0 {
 		return true
 	}
-	if size <= user.Storage {
+	result := DB.Model(user).Where("storage >= ?", size).Update("storage", gorm.Expr("storage - ?", size))
+	if result.RowsAffected > 0 {
 		user.Storage -= size
-		DB.Model(user).Update("storage", gorm.Expr("storage - ?", size))
 		return true
 	}
-	// 如果要减少的容量超出已用容量，则设为零
+	// 如果要减少的容量超出已用容量，则设为零（带条件保护并发安全）
+	DB.Model(user).Where("storage > ?", 0).Update("storage", 0)
 	user.Storage = 0
-	DB.Model(user).Update("storage", 0)
 
 	return false
 }
@@ -87,16 +87,36 @@ func (user *User) IncreaseStorage(size uint64) bool {
 	if size == 0 {
 		return true
 	}
-	if size <= user.GetRemainingCapacity() {
+	// 确保 Group 信息已加载，用于配额上限判断
+	if user.Group.ID == 0 {
+		if err := DB.First(&user.Group, user.GroupID).Error; err != nil {
+			return false
+		}
+	}
+	result := DB.Model(user).
+		Where("storage + ? <= ?", size, user.Group.MaxStorage).
+		Update("storage", gorm.Expr("storage + ?", size))
+	if result.RowsAffected > 0 {
 		user.Storage += size
-		DB.Model(user).Update("storage", gorm.Expr("storage + ?", size))
 		return true
 	}
 	return false
 }
 
 // ChangeStorage 更新用户容量
-func (user *User) ChangeStorage(tx *gorm.DB, operator string, size uint64) error {
+func (user *User) ChangeStorage(tx *gorm.DB, operator string, size uint64, maxStorage uint64) error {
+	if maxStorage > 0 && operator == "+" {
+		result := tx.Model(user).
+			Where("storage + ? <= ?", size, maxStorage).
+			Update("storage", gorm.Expr("storage + ?", size))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("insufficient storage quota")
+		}
+		return nil
+	}
 	return tx.Model(user).Update("storage", gorm.Expr("storage "+operator+" ?", size)).Error
 }
 

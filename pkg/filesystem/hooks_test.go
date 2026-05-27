@@ -99,6 +99,7 @@ func TestGenericAfterUpload(t *testing.T) {
 			Model: gorm.Model{
 				ID: 1,
 			},
+			Group: model.Group{MaxStorage: 100},
 		},
 		Policy: &model.Policy{},
 	}
@@ -356,14 +357,14 @@ func TestHookClearFileSize(t *testing.T) {
 		ctx := context.WithValue(
 			context.Background(),
 			fsctx.FileModelCtx,
-			model.File{Model: gorm.Model{ID: 1}, Size: 10},
+			model.File{Model: gorm.Model{ID: 1}, Size: 10, UserID: 1},
 		)
 		mock.ExpectBegin()
 		mock.ExpectExec("UPDATE(.+)files(.+)").
 			WithArgs("", 0, sqlmock.AnyArg(), 1, 10).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectExec("UPDATE(.+)users(.+)").
-			WithArgs(10, sqlmock.AnyArg()).
+			WithArgs(10, sqlmock.AnyArg(), 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		err := HookClearFileSize(ctx, fs, nil)
@@ -413,12 +414,14 @@ func TestGenericAfterUpdate(t *testing.T) {
 	asserts := assert.New(t)
 	fs := &FileSystem{User: &model.User{
 		Model: gorm.Model{ID: 1},
+		Group: model.Group{MaxStorage: 100},
 	}}
 
 	// 成功 是图像文件
 	{
 		originFile := model.File{
 			Model:   gorm.Model{ID: 1},
+			UserID:  1,
 			PicInfo: "1,1",
 		}
 		newFile := &fsctx.FileStream{Size: 10}
@@ -431,8 +434,8 @@ func TestGenericAfterUpdate(t *testing.T) {
 		mock.ExpectExec("UPDATE(.+)files(.+)").
 			WithArgs("", 10, sqlmock.AnyArg(), 1, 0).
 			WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectExec("UPDATE(.+)users(.+)").
-			WithArgs(10, sqlmock.AnyArg()).
+		mock.ExpectExec("UPDATE(.+)storage").
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 10, 100).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
@@ -451,10 +454,10 @@ func TestGenericAfterUpdate(t *testing.T) {
 	}
 
 	// 无法更新数据库容量
-	// 成功 是图像文件
 	{
 		originFile := model.File{
 			Model:   gorm.Model{ID: 1},
+			UserID:  1,
 			PicInfo: "1,1",
 		}
 		newFile := &fsctx.FileStream{Size: 10}
@@ -594,20 +597,19 @@ func TestHookTruncateFileTo(t *testing.T) {
 
 func TestHookChunkUploaded(t *testing.T) {
 	a := assert.New(t)
-	fs := &FileSystem{}
+	fs := &FileSystem{User: &model.User{Group: model.Group{MaxStorage: 100}}}
 	file := &fsctx.FileStream{
 		AppendStart: 10,
 		Size:        10,
 		Model: &model.File{
-			Model: gorm.Model{ID: 1},
+			Model:  gorm.Model{ID: 1},
+			UserID: 1,
 		},
 	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 20, sqlmock.AnyArg(), 1, 0).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec("UPDATE(.+)users(.+)").
-		WithArgs(20, sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("UPDATE(.+)storage").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 20, 100).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	a.NoError(HookChunkUploaded(context.Background(), fs, file))
 	a.NoError(mock.ExpectationsWereMet())
@@ -620,15 +622,14 @@ func TestHookChunkUploadFailed(t *testing.T) {
 		AppendStart: 10,
 		Size:        10,
 		Model: &model.File{
-			Model: gorm.Model{ID: 1},
+			Model:  gorm.Model{ID: 1},
+			UserID: 1,
 		},
 	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 10, sqlmock.AnyArg(), 1, 0).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectExec("UPDATE(.+)users(.+)").
-		WithArgs(10, sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("UPDATE(.+)storage").WithArgs(10, sqlmock.AnyArg(), 1).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	a.NoError(HookChunkUploadFailed(context.Background(), fs, file))
 	a.NoError(mock.ExpectationsWereMet())

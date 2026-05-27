@@ -138,7 +138,7 @@ func HookClearFileSize(ctx context.Context, fs *FileSystem, file fsctx.FileHeade
 	if !ok {
 		return ErrObjectNotExist
 	}
-	return originFile.UpdateSize(0)
+	return originFile.UpdateSize(0, 0)
 }
 
 // HookCancelContext 取消上下文
@@ -169,7 +169,7 @@ func GenericAfterUpdate(ctx context.Context, fs *FileSystem, newFile fsctx.FileH
 
 	newFile.SetModel(&originFile)
 
-	err := originFile.UpdateSize(newFile.Info().Size)
+	err := originFile.UpdateSize(newFile.Info().Size, fs.User.Group.MaxStorage)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func HookChunkUploaded(ctx context.Context, fs *FileSystem, fileHeader fsctx.Fil
 	fileInfo := fileHeader.Info()
 
 	// 更新文件大小
-	return fileInfo.Model.(*model.File).UpdateSize(fileInfo.AppendStart + fileInfo.Size)
+	return fileInfo.Model.(*model.File).UpdateSize(fileInfo.AppendStart + fileInfo.Size, fs.User.Group.MaxStorage)
 }
 
 // HookChunkUploadFailed 单个分片上传失败后
@@ -252,7 +252,7 @@ func HookChunkUploadFailed(ctx context.Context, fs *FileSystem, fileHeader fsctx
 	fileInfo := fileHeader.Info()
 
 	// 更新文件大小
-	return fileInfo.Model.(*model.File).UpdateSize(fileInfo.AppendStart)
+	return fileInfo.Model.(*model.File).UpdateSize(fileInfo.AppendStart, 0)
 }
 
 // HookPopPlaceholderToFile 将占位文件提升为正式文件

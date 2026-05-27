@@ -51,14 +51,22 @@ func TestFileSystem_ValidateCapacity(t *testing.T) {
 		User: &model.User{
 			Storage: 10,
 			Group: model.Group{
+				Model:       gorm.Model{ID: 1},
 				MaxStorage: 11,
 			},
 		},
 	}
 
+	// IncreaseStorage(1)：WHERE storage + 1 <= 11，RowsAffected=1
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE(.+)").
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 11).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 	asserts.True(fs.ValidateCapacity(ctx, 1))
 	asserts.Equal(uint64(11), fs.User.Storage)
 
+	// IncreaseStorage(10)：WHERE storage + 10 <= 11，不满足，RowsAffected=0
 	fs.User.Storage = 5
 	asserts.False(fs.ValidateCapacity(ctx, 10))
 	asserts.Equal(uint64(5), fs.User.Storage)

@@ -327,21 +327,35 @@ func TestUser_DeductionCapacity(t *testing.T) {
 	newUser.Group.MaxStorage = 100
 	cache.Set("pack_size_1", uint64(0), 0)
 	asserts.NoError(err)
-	asserts.NoError(mock.ExpectationsWereMet())
 
+	// 超出配额，WHERE 条件不满足，无行受影响
 	asserts.Equal(false, newUser.IncreaseStorage(101))
 	asserts.Equal(uint64(0), newUser.Storage)
 
+	// 原子 UPDATE 成功
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE(.+)").
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 1, 100).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 	asserts.Equal(true, newUser.IncreaseStorage(1))
 	asserts.Equal(uint64(1), newUser.Storage)
 
+	// 原子 UPDATE 成功
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE(.+)").
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 99, 100).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 	asserts.Equal(true, newUser.IncreaseStorage(99))
 	asserts.Equal(uint64(100), newUser.Storage)
 
+	// 配额已满，WHERE 条件不满足，无行受影响
 	asserts.Equal(false, newUser.IncreaseStorage(1))
 	asserts.Equal(uint64(100), newUser.Storage)
 
 	asserts.True(newUser.IncreaseStorage(0))
+	asserts.NoError(mock.ExpectationsWereMet())
 }
 
 func TestUser_DeductionStorage(t *testing.T) {
@@ -360,7 +374,9 @@ func TestUser_DeductionStorage(t *testing.T) {
 			Storage: 10,
 		}
 		mock.ExpectBegin()
-		mock.ExpectExec("UPDATE(.+)").WithArgs(5, sqlmock.AnyArg(), 1).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("UPDATE(.+)").
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 5).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
 		asserts.True(user.DeductionStorage(5))
@@ -368,14 +384,21 @@ func TestUser_DeductionStorage(t *testing.T) {
 		asserts.Equal(uint64(5), user.Storage)
 	}
 
-	// 减少的超出可用的
+	// 减少的超出可用的：原子 UPDATE 无行受影响，降级为 storage = 0
 	{
 		user := User{
 			Model:   gorm.Model{ID: 1},
 			Storage: 10,
 		}
 		mock.ExpectBegin()
-		mock.ExpectExec("UPDATE(.+)").WithArgs(0, sqlmock.AnyArg(), 1).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("UPDATE(.+)").
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 20).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectCommit()
+		mock.ExpectBegin()
+		mock.ExpectExec("UPDATE(.+)").
+			WithArgs(0, sqlmock.AnyArg(), 1, 0).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
 		asserts.False(user.DeductionStorage(20))

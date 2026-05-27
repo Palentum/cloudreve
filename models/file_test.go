@@ -13,7 +13,8 @@ import (
 func TestFile_Create(t *testing.T) {
 	asserts := assert.New(t)
 	file := File{
-		Name: "123",
+		Name:   "123",
+		UserID: 1,
 	}
 
 	// 无法插入文件记录
@@ -21,7 +22,7 @@ func TestFile_Create(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec("INSERT(.+)").WillReturnError(errors.New("error"))
 		mock.ExpectRollback()
-		err := file.Create()
+		err := file.Create(0)
 		asserts.Error(err)
 		asserts.NoError(mock.ExpectationsWereMet())
 	}
@@ -32,7 +33,7 @@ func TestFile_Create(t *testing.T) {
 		mock.ExpectExec("INSERT(.+)").WillReturnResult(sqlmock.NewResult(5, 1))
 		mock.ExpectExec("UPDATE(.+)").WillReturnError(errors.New("error"))
 		mock.ExpectRollback()
-		err := file.Create()
+		err := file.Create(100)
 		asserts.Error(err)
 		asserts.NoError(mock.ExpectationsWereMet())
 	}
@@ -43,7 +44,7 @@ func TestFile_Create(t *testing.T) {
 		mock.ExpectExec("INSERT(.+)").WillReturnResult(sqlmock.NewResult(5, 1))
 		mock.ExpectExec("UPDATE(.+)storage(.+)").WillReturnResult(sqlmock.NewResult(0, 1))
 		mock.ExpectCommit()
-		err := file.Create()
+		err := file.Create(100)
 		asserts.NoError(err)
 		asserts.Equal(uint(5), file.ID)
 		asserts.NoError(mock.ExpectationsWereMet())
@@ -563,48 +564,48 @@ func TestFile_UpdateSize(t *testing.T) {
 
 	// 增加成功
 	{
-		file := File{Size: 10}
+		file := File{Size: 10, UserID: 1}
 		mock.ExpectBegin()
 		mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 11, sqlmock.AnyArg(), 10).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectExec("UPDATE(.+)storage(.+)+(.+)").WithArgs(uint64(1), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("UPDATE(.+)storage").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 1, 1, 100).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
-		a.NoError(file.UpdateSize(11))
+		a.NoError(file.UpdateSize(11, 100))
 		a.NoError(mock.ExpectationsWereMet())
 	}
 
 	// 减少成功
 	{
-		file := File{Size: 10}
+		file := File{Size: 10, UserID: 1}
 		mock.ExpectBegin()
 		mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 8, sqlmock.AnyArg(), 10).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectExec("UPDATE(.+)storage(.+)-(.+)").WithArgs(uint64(2), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("UPDATE(.+)storage").WithArgs(uint64(2), sqlmock.AnyArg(), 1).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
-		a.NoError(file.UpdateSize(8))
+		a.NoError(file.UpdateSize(8, 0))
 		a.NoError(mock.ExpectationsWereMet())
 	}
 
-	// 文件更新失败
+	// 文件更新失败（增加路径）
 	{
-		file := File{Size: 10}
+		file := File{Size: 8, UserID: 1}
 		mock.ExpectBegin()
-		mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 8, sqlmock.AnyArg(), 10).WillReturnError(errors.New("error"))
+		mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 11, sqlmock.AnyArg(), 8).WillReturnError(errors.New("error"))
 		mock.ExpectRollback()
 
-		a.Error(file.UpdateSize(8))
+		a.Error(file.UpdateSize(11, 100))
 		a.NoError(mock.ExpectationsWereMet())
 	}
 
 	// 用户容量更新失败
 	{
-		file := File{Size: 10}
+		file := File{Size: 10, UserID: 1}
 		mock.ExpectBegin()
 		mock.ExpectExec("UPDATE(.+)files(.+)").WithArgs("", 8, sqlmock.AnyArg(), 10).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectExec("UPDATE(.+)storage(.+)-(.+)").WithArgs(uint64(2), sqlmock.AnyArg()).WillReturnError(errors.New("error"))
+		mock.ExpectExec("UPDATE(.+)storage").WithArgs(uint64(2), sqlmock.AnyArg(), 1).WillReturnError(errors.New("error"))
 		mock.ExpectRollback()
 
-		a.Error(file.UpdateSize(8))
+		a.Error(file.UpdateSize(8, 0))
 		a.NoError(mock.ExpectationsWereMet())
 	}
 }
