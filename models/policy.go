@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cipher"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/jinzhu/gorm"
 )
@@ -36,8 +37,10 @@ type Policy struct {
 	Options            string `gorm:"type:text"`
 
 	// 数据库忽略字段
-	OptionsSerialized PolicyOption `gorm:"-"`
-	MasterID          string       `gorm:"-"`
+	OptionsSerialized    PolicyOption `gorm:"-"`
+	MasterID             string       `gorm:"-"`
+	plaintextAccessKey   string       `gorm:"-"`
+	plaintextSecretKey   string       `gorm:"-"`
 }
 
 // PolicyOption 非公有的存储策略属性
@@ -99,6 +102,10 @@ func GetPolicyByID(ID interface{}) (Policy, error) {
 
 // AfterFind 找到存储策略后的钩子
 func (policy *Policy) AfterFind() (err error) {
+	// 解密敏感字段
+	policy.AccessKey, _ = cipher.Decrypt(policy.AccessKey)
+	policy.SecretKey, _ = cipher.Decrypt(policy.SecretKey)
+
 	// 解析存储策略设置到OptionsSerialized
 	if policy.Options != "" {
 		err = json.Unmarshal([]byte(policy.Options), &policy.OptionsSerialized)
@@ -113,7 +120,39 @@ func (policy *Policy) AfterFind() (err error) {
 // BeforeSave Save策略前的钩子
 func (policy *Policy) BeforeSave() (err error) {
 	err = policy.SerializeOptions()
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 保存明文以便还原
+	origAK := policy.AccessKey
+	origSK := policy.SecretKey
+	defer func() {
+		if err != nil {
+			policy.AccessKey = origAK
+			policy.SecretKey = origSK
+		}
+	}()
+
+	// 加密敏感字段（成功时 AfterSave 还原，失败时 defer 还原）
+	policy.AccessKey, err = cipher.Encrypt(policy.AccessKey)
+	if err != nil {
+		return err
+	}
+	policy.SecretKey, err = cipher.Encrypt(policy.SecretKey)
+	if err != nil {
+		return err
+	}
+
+	policy.plaintextAccessKey = origAK
+	policy.plaintextSecretKey = origSK
+	return nil
+}
+
+// AfterSave Save完成后的钩子，还原明文供调用方继续使用
+func (policy *Policy) AfterSave() {
+	policy.AccessKey = policy.plaintextAccessKey
+	policy.SecretKey = policy.plaintextSecretKey
 }
 
 // SerializeOptions 将序列后的Option写入到数据库字段
@@ -219,9 +258,13 @@ func (policy *Policy) SaveAndClearCache() error {
 	return err
 }
 
-// SaveAndClearCache 更新并清理缓存
+// UpdateAccessKeyAndClearCache 更新AccessKey并清理缓存
 func (policy *Policy) UpdateAccessKeyAndClearCache(s string) error {
-	err := DB.Model(policy).UpdateColumn("access_key", s).Error
+	encrypted, err := cipher.Encrypt(s)
+	if err != nil {
+		return err
+	}
+	err = DB.Model(policy).UpdateColumn("access_key", encrypted).Error
 	policy.ClearCache()
 	return err
 }

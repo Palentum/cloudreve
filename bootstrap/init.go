@@ -6,6 +6,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v3/pkg/aria2"
 	"github.com/cloudreve/Cloudreve/v3/pkg/auth"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cipher"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cluster"
 	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/crontab"
@@ -31,6 +32,12 @@ func Init(path string, statics fs.FS) {
 		mode    string
 		factory func()
 	}{
+		{
+			"both",
+			func() {
+				cipher.InitFromConfig()
+			},
+		},
 		{
 			"both",
 			func() {

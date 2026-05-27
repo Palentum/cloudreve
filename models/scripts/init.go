@@ -8,4 +8,5 @@ func Init() {
 	invoker.Register("UpgradeTo3.4.0", UpgradeTo340(0))
 	invoker.Register("ClearSharePasswords", ClearSharePasswords(0))
 	invoker.Register("UpgradeWebdavPasswords", UpgradeWebdavPasswords(0))
+	invoker.Register("UpgradeTo3.9.0", UpgradeTo390(0))
 }

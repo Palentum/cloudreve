@@ -56,7 +56,7 @@ func TestNode_SetStatus(t *testing.T) {
 	node := &Node{}
 
 	mock.ExpectBegin()
-	mock.ExpectExec("UPDATE(.+)nodes").WithArgs(NodeActive, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("UPDATE(.+)nodes").WithArgs(NodeActive).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 	a.NoError(node.SetStatus(NodeActive))
 	a.Equal(NodeActive, node.Status)

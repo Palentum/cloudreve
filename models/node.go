@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cipher"
 	"github.com/jinzhu/gorm"
 )
 
@@ -20,6 +21,8 @@ type Node struct {
 
 	// 数据库忽略字段
 	Aria2OptionsSerialized Aria2Option `gorm:"-"`
+	plaintextSlaveKey      string      `gorm:"-"`
+	plaintextMasterKey     string      `gorm:"-"`
 }
 
 // Aria2Option 非公有的Aria2配置属性
@@ -67,6 +70,10 @@ func GetNodesByStatus(status ...NodeStatus) ([]Node, error) {
 
 // AfterFind 找到节点后的钩子
 func (node *Node) AfterFind() (err error) {
+	// 解密敏感字段
+	node.SlaveKey, _ = cipher.Decrypt(node.SlaveKey)
+	node.MasterKey, _ = cipher.Decrypt(node.MasterKey)
+
 	// 解析离线下载设置到 Aria2OptionsSerialized
 	if node.Aria2Options != "" {
 		err = json.Unmarshal([]byte(node.Aria2Options), &node.Aria2OptionsSerialized)
@@ -79,13 +86,43 @@ func (node *Node) AfterFind() (err error) {
 func (node *Node) BeforeSave() (err error) {
 	optionsValue, err := json.Marshal(&node.Aria2OptionsSerialized)
 	node.Aria2Options = string(optionsValue)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 保存明文以便还原
+	origSK := node.SlaveKey
+	origMK := node.MasterKey
+	defer func() {
+		if err != nil {
+			node.SlaveKey = origSK
+			node.MasterKey = origMK
+		}
+	}()
+
+	// 加密敏感字段（成功时 AfterSave 还原，失败时 defer 还原）
+	node.SlaveKey, err = cipher.Encrypt(node.SlaveKey)
+	if err != nil {
+		return err
+	}
+	node.MasterKey, err = cipher.Encrypt(node.MasterKey)
+	if err != nil {
+		return err
+	}
+
+	node.plaintextSlaveKey = origSK
+	node.plaintextMasterKey = origMK
+	return nil
+}
+
+// AfterSave Save完成后的钩子，还原明文供调用方继续使用
+func (node *Node) AfterSave() {
+	node.SlaveKey = node.plaintextSlaveKey
+	node.MasterKey = node.plaintextMasterKey
 }
 
 // SetStatus 设置节点启用状态
 func (node *Node) SetStatus(status NodeStatus) error {
 	node.Status = status
-	return DB.Model(node).Updates(map[string]interface{}{
-		"status": status,
-	}).Error
+	return DB.Model(node).UpdateColumn("status", status).Error
 }
