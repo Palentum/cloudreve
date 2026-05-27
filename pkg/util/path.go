@@ -57,3 +57,13 @@ func RelativePath(name string) string {
 	return filepath.Join(filepath.Dir(e), name)
 }
 
+// IsPathUnderRoot 检查 filePath 是否在 root 目录内（防止路径穿越）
+func IsPathUnderRoot(filePath, root string) bool {
+	absPath := filepath.Clean(filePath)
+	absRoot := filepath.Clean(root)
+	if absPath == absRoot {
+		return true
+	}
+	return strings.HasPrefix(absPath, absRoot+string(filepath.Separator))
+}
+

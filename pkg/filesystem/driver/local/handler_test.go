@@ -289,10 +289,11 @@ func TestHandler_Token(t *testing.T) {
 	_, err := handler.Token(ctx, 10, upSession, &fsctx.FileStream{})
 	asserts.NoError(err)
 
-	file, _ := os.Create("TestHandler_Token")
+	filePath := util.RelativePath("TestHandler_Token")
+	file, _ := os.Create(filePath)
 	defer func() {
 		file.Close()
-		os.Remove("TestHandler_Token")
+		os.Remove(filePath)
 	}()
 
 	_, err = handler.Token(ctx, 10, upSession, &fsctx.FileStream{})
@@ -334,5 +335,86 @@ func TestDriver_List(t *testing.T) {
 		res, err := handler.List(ctx, "test/TestDriver_List", true)
 		asserts.NoError(err)
 		asserts.Len(res, 7)
+	}
+}
+
+func TestHandler_PathTraversal(t *testing.T) {
+	asserts := assert.New(t)
+	handler := Driver{}
+	ctx := context.Background()
+
+	// Get: 相对路径穿越
+	{
+		_, err := handler.Get(ctx, "../../../etc/passwd")
+		asserts.Error(err)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	// Get: 含 ".." 的路径
+	{
+		_, err := handler.Get(ctx, "uploads/../../etc/passwd")
+		asserts.Error(err)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	// Put: 相对路径穿越
+	{
+		file := &fsctx.FileStream{
+			SavePath: "../../../tmp/evil.txt",
+			File:     io.NopCloser(strings.NewReader("")),
+		}
+		err := handler.Put(ctx, file)
+		asserts.Error(err)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	// Delete: 相对路径穿越
+	{
+		list, err := handler.Delete(ctx, []string{"../../../etc/passwd"})
+		asserts.Error(err)
+		asserts.Contains(err.Error(), "path traversal")
+		asserts.Contains(list, "../../../etc/passwd")
+	}
+
+	// List: 相对路径穿越
+	{
+		_, err := handler.List(ctx, "../../../etc", false)
+		asserts.Error(err)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	// Truncate: 相对路径穿越
+	{
+		err := handler.Truncate(ctx, "../../../etc/passwd", 0)
+		asserts.Error(err)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	// 正常相对路径可用
+	{
+		filePath := util.RelativePath("TestHandler_PathTraversal.txt")
+		f, err := os.Create(filePath)
+		asserts.NoError(err)
+		f.Close()
+		defer os.Remove(filePath)
+
+		rs, err := handler.Get(ctx, "TestHandler_PathTraversal.txt")
+		asserts.NoError(err)
+		asserts.NotNil(rs)
+		rs.Close()
+	}
+
+	// 带前导 "/" 的路径（DirNameRule 产生的格式）可用
+	{
+		filePath := util.RelativePath("TestHandler_PathTraversal_slash.txt")
+		f, err := os.Create(filePath)
+		asserts.NoError(err)
+		f.Close()
+		defer os.Remove(filePath)
+
+		rs, err := handler.Get(ctx, "/TestHandler_PathTraversal_slash.txt")
+		asserts.NoError(err)
+		asserts.NotNil(rs)
+		rs.Close()
 	}
 }

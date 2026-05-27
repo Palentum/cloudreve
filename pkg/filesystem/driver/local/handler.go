@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/auth"
@@ -29,15 +30,52 @@ type Driver struct {
 	Policy *model.Policy
 }
 
+// validatePath 校验路径是否在存储根目录内，防止路径穿越，返回解析后的绝对路径。
+// 本地策略的 DirNameRule 可以包含前导 "/"（如 "/{uid}/{path}"），
+// 由 GeneratePath 产生的 SavePath 会以 "/" 开头。此类路径需去掉前导
+// "/" 后作为相对于可执行文件目录的路径处理。
+func (handler Driver) validatePath(p string) (string, error) {
+	cleaned := filepath.Clean(filepath.FromSlash(p))
+	root := handler.root()
+
+	if filepath.IsAbs(cleaned) {
+		// 去掉前导 "/"，使其作为相对于 root 的路径处理。
+		// GeneratePath 的 DirNameRule 可能产生 "/1/filename" 这样的路径，
+		// util.RelativePath 会将其视为绝对路径直接返回，导致不在 root 下。
+		cleaned = cleaned[1:]
+	}
+
+	// 检查路径是否包含 ".." 穿越组件
+	for _, part := range strings.Split(cleaned, string(filepath.Separator)) {
+		if part == ".." {
+			return "", fmt.Errorf("path %q contains path traversal", p)
+		}
+	}
+
+	resolved := filepath.Join(root, cleaned)
+	if !util.IsPathUnderRoot(resolved, root) {
+		return "", fmt.Errorf("path %q is outside storage root", p)
+	}
+	return resolved, nil
+}
+
+// root 返回本地存储的根目录（可执行文件所在目录）
+func (handler Driver) root() string {
+	e, _ := os.Executable()
+	return filepath.Dir(e)
+}
+
 // List 递归列取给定物理路径下所有文件
 func (handler Driver) List(ctx context.Context, path string, recursive bool) ([]response.Object, error) {
 	var res []response.Object
 
-	// 取得起始路径
-	root := util.RelativePath(filepath.FromSlash(path))
+	root, err := handler.validatePath(path)
+	if err != nil {
+		return nil, err
+	}
 
 	// 开始遍历路径下的文件、目录
-	err := filepath.Walk(root,
+	err = filepath.Walk(root,
 		func(path string, info os.FileInfo, err error) error {
 			// 跳过根目录
 			if path == root {
@@ -77,8 +115,13 @@ func (handler Driver) List(ctx context.Context, path string, recursive bool) ([]
 
 // Get 获取文件内容
 func (handler Driver) Get(ctx context.Context, path string) (response.RSCloser, error) {
+	resolved, err := handler.validatePath(path)
+	if err != nil {
+		return nil, err
+	}
+
 	// 打开文件
-	file, err := os.Open(util.RelativePath(path))
+	file, err := os.Open(resolved)
 	if err != nil {
 		util.Log().Debug("Failed to open file: %s", err)
 		return nil, err
@@ -91,7 +134,11 @@ func (handler Driver) Get(ctx context.Context, path string) (response.RSCloser, 
 func (handler Driver) Put(ctx context.Context, file fsctx.FileHeader) error {
 	defer file.Close()
 	fileInfo := file.Info()
-	dst := util.RelativePath(filepath.FromSlash(fileInfo.SavePath))
+
+	dst, err := handler.validatePath(fileInfo.SavePath)
+	if err != nil {
+		return err
+	}
 
 	// 如果非 Overwrite，则检查是否有重名冲突
 	if fileInfo.Mode&fsctx.Overwrite != fsctx.Overwrite {
@@ -104,17 +151,14 @@ func (handler Driver) Put(ctx context.Context, file fsctx.FileHeader) error {
 	// 如果目标目录不存在，创建
 	basePath := filepath.Dir(dst)
 	if !util.Exists(basePath) {
-		err := os.MkdirAll(basePath, Perm)
-		if err != nil {
-			util.Log().Warning("Failed to create directory: %s", err)
-			return err
+		mkdirErr := os.MkdirAll(basePath, Perm)
+		if mkdirErr != nil {
+			util.Log().Warning("Failed to create directory: %s", mkdirErr)
+			return mkdirErr
 		}
 	}
 
-	var (
-		out *os.File
-		err error
-	)
+	var out *os.File
 
 	openMode := os.O_CREATE | os.O_RDWR
 	if fileInfo.Mode&fsctx.Append == fsctx.Append {
@@ -141,7 +185,7 @@ func (handler Driver) Put(ctx context.Context, file fsctx.FileHeader) error {
 			return errors.New("size of unfinished uploaded chunks is not as expected")
 		} else if uint64(stat.Size()) > fileInfo.AppendStart {
 			out.Close()
-			if err := handler.Truncate(ctx, dst, fileInfo.AppendStart); err != nil {
+			if err := handler.Truncate(ctx, fileInfo.SavePath, fileInfo.AppendStart); err != nil {
 				return fmt.Errorf("failed to overwrite chunk: %w", err)
 			}
 
@@ -159,9 +203,15 @@ func (handler Driver) Put(ctx context.Context, file fsctx.FileHeader) error {
 	return err
 }
 
+// Truncate 截断文件。src 为原始路径（与 validatePath 输入一致），非解析后路径。
 func (handler Driver) Truncate(ctx context.Context, src string, size uint64) error {
+	resolved, err := handler.validatePath(src)
+	if err != nil {
+		return err
+	}
+
 	util.Log().Warning("Truncate file %q to [%d].", src, size)
-	out, err := os.OpenFile(src, os.O_WRONLY, Perm)
+	out, err := os.OpenFile(resolved, os.O_WRONLY, Perm)
 	if err != nil {
 		util.Log().Warning("Failed to open file: %s", err)
 		return err
@@ -178,7 +228,13 @@ func (handler Driver) Delete(ctx context.Context, files []string) ([]string, err
 	var retErr error
 
 	for _, value := range files {
-		filePath := util.RelativePath(filepath.FromSlash(value))
+		filePath, err := handler.validatePath(value)
+		if err != nil {
+			deleteFailed = append(deleteFailed, value)
+			retErr = err
+			continue
+		}
+
 		if util.Exists(filePath) {
 			err := os.Remove(filePath)
 			if err != nil {
@@ -189,7 +245,8 @@ func (handler Driver) Delete(ctx context.Context, files []string) ([]string, err
 		}
 
 		// 尝试删除文件的缩略图（如果有）
-		_ = os.Remove(util.RelativePath(value + model.GetSettingByNameWithDefault("thumb_file_suffix", "._thumb")))
+		thumbPath := filePath + model.GetSettingByNameWithDefault("thumb_file_suffix", "._thumb")
+		_ = os.Remove(thumbPath)
 	}
 
 	return deleteFailed, retErr
@@ -276,7 +333,12 @@ func (handler Driver) Source(ctx context.Context, path string, ttl int64, isDown
 
 // Token 获取上传策略和认证Token，本地策略直接返回空值
 func (handler Driver) Token(ctx context.Context, ttl int64, uploadSession *serializer.UploadSession, file fsctx.FileHeader) (*serializer.UploadCredential, error) {
-	if util.Exists(uploadSession.SavePath) {
+	resolved, err := handler.validatePath(uploadSession.SavePath)
+	if err != nil {
+		return nil, err
+	}
+
+	if util.Exists(resolved) {
 		return nil, errors.New("placeholder file already exist")
 	}
 

@@ -88,7 +88,7 @@ func TestPolicy_GeneratePath(t *testing.T) {
 	testPolicy.DirNameRule = "/1/{path}/456"
 	asserts.Condition(func() (success bool) {
 		res := testPolicy.GeneratePath(1, "/23")
-		return res == "/1/23/456" || res == "\\1\\23\\456"
+		return res == "1/23/456" || res == "1\\23\\456"
 	})
 
 }

@@ -125,7 +125,7 @@ func (policy *Policy) SerializeOptions() (err error) {
 
 // GeneratePath 生成存储文件的路径
 func (policy *Policy) GeneratePath(uid uint, origin string) string {
-	dirRule := policy.DirNameRule
+	dirRule := strings.TrimPrefix(policy.DirNameRule, "/")
 	replaceTable := map[string]string{
 		"{randomkey16}":    util.RandStringRunes(16),
 		"{randomkey8}":     util.RandStringRunes(8),

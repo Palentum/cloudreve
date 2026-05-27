@@ -276,9 +276,7 @@ func (service *SlaveTestService) Test() serializer.Response {
 
 // Add 添加存储策略
 func (service *AddPolicyService) Add() serializer.Response {
-	if service.Policy.Type != "local" && service.Policy.Type != "remote" {
-		service.Policy.DirNameRule = strings.TrimPrefix(service.Policy.DirNameRule, "/")
-	}
+	service.Policy.DirNameRule = strings.TrimPrefix(service.Policy.DirNameRule, "/")
 
 	if service.Policy.ID > 0 {
 		if err := model.DB.Save(&service.Policy).Error; err != nil {
