@@ -9,7 +9,11 @@ RUN apk update \
     && echo "Asia/Shanghai" > /etc/timezone \
     && chmod +x ./cloudreve \
     && mkdir -p /data/aria2 \
-    && chmod -R 766 /data/aria2
+    && chmod -R 766 /data/aria2 \
+    && adduser -D -u 1000 cloudreve \
+    && chown -R cloudreve:cloudreve /cloudreve /data
+
+USER cloudreve
 
 EXPOSE 5212
 VOLUME ["/cloudreve/uploads", "/cloudreve/avatar", "/data"]
