@@ -374,13 +374,20 @@ func (handler *Driver) Token(ctx context.Context, ttl int64, uploadSession *seri
 		return nil, err
 	}
 
+	// 生成回调地址
+	siteURL := model.GetSiteURL()
+	apiBaseURI, _ := url.Parse(path.Join("/api/v3/callback/s3", uploadSession.Key))
+	callbackURL := siteURL.ResolveReference(apiBaseURI).String()
+
 	// 生成上传凭证
 	return &serializer.UploadCredential{
-		SessionID:   uploadSession.Key,
-		ChunkSize:   handler.Policy.OptionsSerialized.ChunkSize,
-		UploadID:    *res.UploadId,
-		UploadURLs:  urls,
-		CompleteURL: signedURL,
+		SessionID:      uploadSession.Key,
+		ChunkSize:      handler.Policy.OptionsSerialized.ChunkSize,
+		UploadID:       *res.UploadId,
+		UploadURLs:     urls,
+		CompleteURL:    signedURL,
+		Callback:       callbackURL,
+		CallbackSecret: uploadSession.CallbackSecret,
 	}, nil
 }
 

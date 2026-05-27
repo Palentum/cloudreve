@@ -299,6 +299,40 @@ func OneDriveCallbackAuth() gin.HandlerFunc {
 	}
 }
 
+// COSCallbackAuth COS回调签名验证
+func COSCallbackAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := c.MustGet(filesystem.UploadSessionCtx).(*serializer.UploadSession)
+
+		// 验证回调签名
+		authInstance := auth.HMACAuth{SecretKey: []byte(session.CallbackSecret)}
+		if err := auth.CheckRequest(authInstance, c.Request); err != nil {
+			c.JSON(CallbackFailedStatusCode, serializer.Err(serializer.CodeCredentialInvalid, err.Error(), err))
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// S3CallbackAuth S3回调签名验证
+func S3CallbackAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := c.MustGet(filesystem.UploadSessionCtx).(*serializer.UploadSession)
+
+		// 验证回调签名
+		authInstance := auth.HMACAuth{SecretKey: []byte(session.CallbackSecret)}
+		if err := auth.CheckRequest(authInstance, c.Request); err != nil {
+			c.JSON(CallbackFailedStatusCode, serializer.Err(serializer.CodeCredentialInvalid, err.Error(), err))
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 // IsAdmin 必须为管理员用户组
 func IsAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {

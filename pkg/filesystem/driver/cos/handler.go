@@ -361,6 +361,7 @@ func (handler Driver) Token(ctx context.Context, ttl int64, uploadSession *seria
 	if err == nil {
 		res.SessionID = uploadSession.Key
 		res.Callback = apiURL
+		res.CallbackSecret = uploadSession.CallbackSecret
 		res.UploadURLs = []string{handler.Policy.Server}
 	}
 

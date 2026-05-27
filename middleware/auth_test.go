@@ -614,6 +614,82 @@ func TestOneDriveCallbackAuth(t *testing.T) {
 	}
 }
 
+func TestCOSCallbackAuth(t *testing.T) {
+	asserts := assert.New(t)
+	rec := httptest.NewRecorder()
+	AuthFunc := COSCallbackAuth()
+
+	// 成功
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:            1,
+			VirtualPath:    "/",
+			Policy:         model.Policy{SecretKey: "123"},
+			CallbackSecret: "test-cos-secret",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/cos/testSession", nil)
+		authInstance := auth.HMACAuth{SecretKey: []byte("test-cos-secret")}
+		auth.SignRequest(authInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.False(c.IsAborted())
+	}
+
+	// 签名错误
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:            1,
+			VirtualPath:    "/",
+			Policy:         model.Policy{SecretKey: "123"},
+			CallbackSecret: "test-cos-secret",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/cos/testSession", nil)
+		wrongInstance := auth.HMACAuth{SecretKey: []byte("wrong-secret")}
+		auth.SignRequest(wrongInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.True(c.IsAborted())
+	}
+}
+
+func TestS3CallbackAuth(t *testing.T) {
+	asserts := assert.New(t)
+	rec := httptest.NewRecorder()
+	AuthFunc := S3CallbackAuth()
+
+	// 成功
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:            1,
+			VirtualPath:    "/",
+			Policy:         model.Policy{SecretKey: "123"},
+			CallbackSecret: "test-s3-secret",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/s3/testSession", nil)
+		authInstance := auth.HMACAuth{SecretKey: []byte("test-s3-secret")}
+		auth.SignRequest(authInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.False(c.IsAborted())
+	}
+
+	// 签名错误
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:            1,
+			VirtualPath:    "/",
+			Policy:         model.Policy{SecretKey: "123"},
+			CallbackSecret: "test-s3-secret",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/s3/testSession", nil)
+		wrongInstance := auth.HMACAuth{SecretKey: []byte("wrong-secret")}
+		auth.SignRequest(wrongInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.True(c.IsAborted())
+	}
+}
+
 func TestIsAdmin(t *testing.T) {
 	asserts := assert.New(t)
 	rec := httptest.NewRecorder()
