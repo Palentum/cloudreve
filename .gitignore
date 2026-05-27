@@ -27,6 +27,7 @@ version.lock
 # Config file
 *.ini
 conf/conf.ini
+.env
 /statik/
 .vscode/
 

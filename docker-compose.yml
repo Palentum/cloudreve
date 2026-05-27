@@ -29,7 +29,7 @@ services:
     image: p3terx/aria2-pro # third party image, please keep notice what you are doing
     restart: unless-stopped
     environment:
-      - RPC_SECRET=your_aria_rpc_token # aria rpc token, customize your own
+      - RPC_SECRET=${ARIA2_RPC_SECRET}
       - RPC_PORT=6800
     volumes:
       - ./aria2/config:/config
