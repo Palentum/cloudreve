@@ -41,6 +41,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/scf v1.0.393
 	github.com/tencentyun/cos-go-sdk-v5 v0.0.0-20200120023323-87ff3bc489ac
 	github.com/upyun/go-sdk v2.1.0+incompatible
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	google.golang.org/api v0.45.0
@@ -147,7 +148,6 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.16.0 // indirect
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20211013180041-c96bc1413d57 // indirect
 	golang.org/x/net v0.0.0-20220630215102-69896b714898 // indirect
@@ -171,7 +171,6 @@ require (
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.20.3 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
-
 )
 
 replace github.com/gomodule/redigo v2.0.0+incompatible => github.com/gomodule/redigo v1.8.9
