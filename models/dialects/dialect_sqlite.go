@@ -11,7 +11,24 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-var keyNameRegex = regexp.MustCompile("[^a-zA-Z0-9]+")
+var (
+	keyNameRegex     = regexp.MustCompile("[^a-zA-Z0-9]+")
+	safeIdentifier   = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+)
+
+func validateIdentifier(name string) error {
+	if !safeIdentifier.MatchString(name) {
+		return fmt.Errorf("invalid identifier: %q contains disallowed characters", name)
+	}
+	return nil
+}
+
+// validateQuotedIdentifier strips surrounding double quotes (added by gorm's Quote)
+// before validating the inner identifier.
+func validateQuotedIdentifier(name string) error {
+	unquoted := strings.TrimPrefix(strings.TrimSuffix(name, `"`), `"`)
+	return validateIdentifier(unquoted)
+}
 
 // DefaultForeignKeyNamer contains the default foreign key name generator method
 type DefaultForeignKeyNamer struct {
@@ -113,6 +130,9 @@ func (s commonDialect) HasIndex(tableName string, indexName string) bool {
 }
 
 func (s commonDialect) RemoveIndex(tableName string, indexName string) error {
+	if err := validateIdentifier(indexName); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(fmt.Sprintf("DROP INDEX %v", indexName))
 	return err
 }
@@ -136,6 +156,14 @@ func (s commonDialect) HasColumn(tableName string, columnName string) bool {
 }
 
 func (s commonDialect) ModifyColumn(tableName string, columnName string, typ string) error {
+	// tableName and columnName arrive as quoted identifiers (e.g. "users") from gorm scope;
+	// typ is a SQL type expression (e.g. "varchar(255)") that legitimately contains non-identifier characters.
+	if err := validateQuotedIdentifier(tableName); err != nil {
+		return err
+	}
+	if err := validateQuotedIdentifier(columnName); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %v ALTER COLUMN %v TYPE %v", tableName, columnName, typ))
 	return err
 }
@@ -252,6 +280,9 @@ func (s *sqlite) DataTypeOf(field *gorm.StructField) string {
 }
 
 func (s sqlite) HasIndex(tableName string, indexName string) bool {
+	if err := validateIdentifier(indexName); err != nil {
+		return false
+	}
 	var count int
 	s.db.QueryRow(fmt.Sprintf("SELECT count(*) FROM sqlite_master WHERE tbl_name = ? AND sql LIKE '%%INDEX %v ON%%'", indexName), tableName).Scan(&count)
 	return count > 0
@@ -264,6 +295,9 @@ func (s sqlite) HasTable(tableName string) bool {
 }
 
 func (s sqlite) HasColumn(tableName string, columnName string) bool {
+	if err := validateIdentifier(columnName); err != nil {
+		return false
+	}
 	var count int
 	s.db.QueryRow(fmt.Sprintf("SELECT count(*) FROM sqlite_master WHERE tbl_name = ? AND (sql LIKE '%%\"%v\" %%' OR sql LIKE '%%%v %%');", columnName, columnName), tableName).Scan(&count)
 	return count > 0
