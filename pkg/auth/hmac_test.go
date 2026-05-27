@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +56,15 @@ func TestHMACAuth_Check(t *testing.T) {
 	{
 		sign := auth.Sign("content", 0)
 		asserts.NoError(auth.Check("content", sign))
+	}
+
+	// 兼容浏览器生成的无 padding base64url 签名
+	{
+		sign := auth.Sign("content", time.Now().Unix()+10)
+		signParts := strings.Split(sign, ":")
+		signParts[0] = strings.TrimRight(signParts[0], "=")
+		asserts.NoError(auth.Check("content", strings.Join(signParts, ":")))
+		asserts.Error(auth.Check("wrong-content", strings.Join(signParts, ":")))
 	}
 
 	// 过期

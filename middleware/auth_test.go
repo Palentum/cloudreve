@@ -28,6 +28,14 @@ var currentDB *sql.DB
 
 var mock sqlmock.Sqlmock
 
+func signRequestWithoutBase64Padding(instance auth.Auth, r *http.Request, expires int64) {
+	auth.SignRequest(instance, r, expires)
+	sign := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	signParts := strings.Split(sign, ":")
+	signParts[0] = strings.TrimRight(signParts[0], "=")
+	r.Header.Set("Authorization", "Bearer "+strings.Join(signParts, ":"))
+}
+
 // newMock 创建新的 sqlmock 实例并替换全局 DB
 func newMock() sqlmock.Sqlmock {
 	if currentDB != nil {
@@ -591,6 +599,34 @@ func TestOneDriveCallbackAuth(t *testing.T) {
 		asserts.False(c.IsAborted())
 	}
 
+	// 成功，兼容浏览器生成的无 padding base64url 签名
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Params = []gin.Param{
+			{"sessionID", "TestOneDriveCallbackAuthRawBase64"},
+		}
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:         1,
+			VirtualPath: "/",
+			Policy: model.Policy{
+				SecretKey: "123",
+				AccessKey: "123",
+			},
+			CallbackSecret: "test-secret-key",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/onedrive/finish/TestOneDriveCallbackAuthRawBase64", ioutil.NopCloser(strings.NewReader("1")))
+		authInstance := auth.HMACAuth{SecretKey: []byte("test-secret-key")}
+		signRequestWithoutBase64Padding(authInstance, c.Request, 0)
+		res := mq.GlobalMQ.Subscribe("TestOneDriveCallbackAuthRawBase64", 1)
+		AuthFunc(c)
+		select {
+		case <-res:
+		case <-time.After(time.Millisecond * 500):
+			asserts.Fail("mq message should be published")
+		}
+		asserts.False(c.IsAborted())
+	}
+
 	// 签名错误
 	{
 		c, _ := gin.CreateTestContext(rec)
@@ -635,6 +671,22 @@ func TestCOSCallbackAuth(t *testing.T) {
 		asserts.False(c.IsAborted())
 	}
 
+	// 成功，兼容浏览器生成的无 padding base64url 签名
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:            1,
+			VirtualPath:    "/",
+			Policy:         model.Policy{SecretKey: "123"},
+			CallbackSecret: "test-cos-secret",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/cos/testSession", nil)
+		authInstance := auth.HMACAuth{SecretKey: []byte("test-cos-secret")}
+		signRequestWithoutBase64Padding(authInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.False(c.IsAborted())
+	}
+
 	// 签名错误
 	{
 		c, _ := gin.CreateTestContext(rec)
@@ -669,6 +721,22 @@ func TestS3CallbackAuth(t *testing.T) {
 		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/s3/testSession", nil)
 		authInstance := auth.HMACAuth{SecretKey: []byte("test-s3-secret")}
 		auth.SignRequest(authInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.False(c.IsAborted())
+	}
+
+	// 成功，兼容浏览器生成的无 padding base64url 签名
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:            1,
+			VirtualPath:    "/",
+			Policy:         model.Policy{SecretKey: "123"},
+			CallbackSecret: "test-s3-secret",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/s3/testSession", nil)
+		authInstance := auth.HMACAuth{SecretKey: []byte("test-s3-secret")}
+		signRequestWithoutBase64Padding(authInstance, c.Request, 0)
 		AuthFunc(c)
 		asserts.False(c.IsAborted())
 	}

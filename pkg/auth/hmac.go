@@ -19,14 +19,27 @@ type HMACAuth struct {
 // Sign 对给定Body生成expires后失效的签名，expires为过期时间戳，
 // 填写为0表示不限制有效期
 func (auth HMACAuth) Sign(body string, expires int64) string {
+	sum, expireTimeStamp := auth.signatureSum(body, expires)
+	return encodeSign(sum, expireTimeStamp, base64.URLEncoding)
+}
+
+func (auth HMACAuth) signatureSum(body string, expires int64) ([]byte, string) {
 	h := hmac.New(sha256.New, auth.SecretKey)
 	expireTimeStamp := strconv.FormatInt(expires, 10)
 	_, err := io.WriteString(h, body+":"+expireTimeStamp)
 	if err != nil {
+		return nil, ""
+	}
+
+	return h.Sum(nil), expireTimeStamp
+}
+
+func encodeSign(sum []byte, expireTimeStamp string, encoding *base64.Encoding) string {
+	if sum == nil {
 		return ""
 	}
 
-	return base64.URLEncoding.EncodeToString(h.Sum(nil)) + ":" + expireTimeStamp
+	return encoding.EncodeToString(sum) + ":" + expireTimeStamp
 }
 
 // Check 对给定Body和Sign进行鉴权，包括对expires的检查
@@ -48,7 +61,11 @@ func (auth HMACAuth) Check(body string, sign string) error {
 	}
 
 	// 验证签名
-	if subtle.ConstantTimeCompare([]byte(auth.Sign(body, expires)), []byte(sign)) != 1 {
+	signSum, expireTimeStamp := auth.signatureSum(body, expires)
+	paddedSign := encodeSign(signSum, expireTimeStamp, base64.URLEncoding)
+	rawSign := encodeSign(signSum, expireTimeStamp, base64.RawURLEncoding)
+	if subtle.ConstantTimeCompare([]byte(paddedSign), []byte(sign)) != 1 &&
+		subtle.ConstantTimeCompare([]byte(rawSign), []byte(sign)) != 1 {
 		return ErrAuthFailed
 	}
 	return nil
