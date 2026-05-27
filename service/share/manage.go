@@ -47,7 +47,10 @@ func (service *ShareUpdateService) Update(c *gin.Context) serializer.Response {
 
 	switch service.Prop {
 	case "password":
-		err := share.Update(map[string]interface{}{"password": service.Value})
+		if err := share.SetPassword(service.Value); err != nil {
+			return serializer.DBErr("Failed to hash share password", err)
+		}
+		err := share.Update(map[string]interface{}{"password": share.Password})
 		if err != nil {
 			return serializer.DBErr("Failed to update share record", err)
 		}
@@ -113,13 +116,16 @@ func (service *ShareCreateService) Create(c *gin.Context) serializer.Response {
 	}
 
 	newShare := model.Share{
-		Password:        service.Password,
 		IsDir:           service.IsDir,
 		UserID:          user.ID,
 		SourceID:        sourceID,
 		RemainDownloads: -1,
 		PreviewEnabled:  service.Preview,
 		SourceName:      sourceName,
+	}
+
+	if err := newShare.SetPassword(service.Password); err != nil {
+		return serializer.DBErr("Failed to hash share password", err)
 	}
 
 	// 如果开启了自动过期

@@ -36,7 +36,7 @@ type shareSource struct {
 type myShareItem struct {
 	Key             string       `json:"key"`
 	IsDir           bool         `json:"is_dir"`
-	Password        string       `json:"password"`
+	HasPassword     bool         `json:"has_password"`
 	CreateDate      time.Time    `json:"create_date,omitempty"`
 	Downloads       int          `json:"downloads"`
 	RemainDownloads int          `json:"remain_downloads"`
@@ -54,7 +54,7 @@ func BuildShareList(shares []model.Share, total int) Response {
 		item := myShareItem{
 			Key:             hashid.HashID(shares[i].ID, hashid.ShareID),
 			IsDir:           shares[i].IsDir,
-			Password:        shares[i].Password,
+			HasPassword:     shares[i].Password != "",
 			CreateDate:      shares[i].CreatedAt,
 			Downloads:       shares[i].Downloads,
 			Views:           shares[i].Views,

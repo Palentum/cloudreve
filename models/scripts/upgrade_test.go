@@ -64,3 +64,26 @@ func TestUpgradeTo340_Run(t *testing.T) {
 		a.NoError(mock.ExpectationsWereMet())
 	}
 }
+
+func TestClearSharePasswords_Run(t *testing.T) {
+	a := assert.New(t)
+	script := ClearSharePasswords(0)
+
+	// success
+	{
+		mock.ExpectBegin()
+		mock.ExpectExec("UPDATE(.+)shares").WillReturnResult(sqlmock.NewResult(0, 5))
+		mock.ExpectCommit()
+		script.Run(context.Background())
+		a.NoError(mock.ExpectationsWereMet())
+	}
+
+	// error
+	{
+		mock.ExpectBegin()
+		mock.ExpectExec("UPDATE(.+)shares").WillReturnError(errors.New("error"))
+		mock.ExpectRollback()
+		script.Run(context.Background())
+		a.NoError(mock.ExpectationsWereMet())
+	}
+}

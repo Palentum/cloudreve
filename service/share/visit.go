@@ -126,7 +126,7 @@ func (service *ShareGetService) Get(c *gin.Context) serializer.Response {
 		unlocked = util.GetSession(c, sessionKey) != nil
 		if !unlocked && service.Password != "" {
 			// 如果未解锁，且指定了密码，则尝试解锁
-			if service.Password == share.Password {
+			if share.CheckPassword(service.Password) {
 				unlocked = true
 				util.SetSession(c, map[string]interface{}{sessionKey: true})
 			}

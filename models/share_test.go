@@ -319,3 +319,52 @@ func TestSearchShares(t *testing.T) {
 	asserts.Len(res, 1)
 	asserts.Equal(1, total)
 }
+
+func TestShare_SetPassword(t *testing.T) {
+	asserts := assert.New(t)
+
+	// 空密码
+	{
+		share := Share{}
+		err := share.SetPassword("")
+		asserts.NoError(err)
+		asserts.Empty(share.Password)
+	}
+
+	// 正常密码
+	{
+		share := Share{}
+		err := share.SetPassword("test123")
+		asserts.NoError(err)
+		asserts.NotEmpty(share.Password)
+		asserts.NotEqual("test123", share.Password)
+		asserts.True(len(share.Password) > 20)
+	}
+}
+
+func TestShare_CheckPassword(t *testing.T) {
+	asserts := assert.New(t)
+
+	// 无密码分享，始终返回 true
+	{
+		share := Share{}
+		asserts.True(share.CheckPassword(""))
+		asserts.True(share.CheckPassword("anything"))
+	}
+
+	// 有密码，正确
+	{
+		share := Share{}
+		err := share.SetPassword("mypassword")
+		asserts.NoError(err)
+		asserts.True(share.CheckPassword("mypassword"))
+	}
+
+	// 有密码，错误
+	{
+		share := Share{}
+		err := share.SetPassword("mypassword")
+		asserts.NoError(err)
+		asserts.False(share.CheckPassword("wrongpassword"))
+	}
+}

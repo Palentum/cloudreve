@@ -11,6 +11,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Share 分享模型
@@ -31,6 +32,28 @@ type Share struct {
 	User   User   `gorm:"PRELOAD:false,association_autoupdate:false"`
 	File   File   `gorm:"PRELOAD:false,association_autoupdate:false"`
 	Folder Folder `gorm:"PRELOAD:false,association_autoupdate:false"`
+}
+
+// SetPassword 对密码进行 bcrypt 哈希后存储，空密码表示无密码保护
+func (share *Share) SetPassword(password string) error {
+	if password == "" {
+		share.Password = ""
+		return nil
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return err
+	}
+	share.Password = string(hash)
+	return nil
+}
+
+// CheckPassword 验证密码是否匹配，无密码分享始终返回 true
+func (share *Share) CheckPassword(password string) bool {
+	if share.Password == "" {
+		return true
+	}
+	return bcrypt.CompareHashAndPassword([]byte(share.Password), []byte(password)) == nil
 }
 
 // Create 创建分享

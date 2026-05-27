@@ -71,6 +71,13 @@ func (service *AdminListService) Shares() serializer.Response {
 		users[v.ID] = v
 	}
 
+	// 隐藏密码哈希，避免通过 API 泄露
+	for i := range res {
+		if res[i].Password != "" {
+			res[i].Password = "***"
+		}
+	}
+
 	return serializer.Response{Data: map[string]interface{}{
 		"total": total,
 		"items": res,
