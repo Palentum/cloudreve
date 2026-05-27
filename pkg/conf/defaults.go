@@ -32,7 +32,7 @@ var CORSConfig = &cors{
 	AllowHeaders:     []string{"Cookie", "X-Cr-Policy", "Authorization", "Content-Length", "Content-Type", "X-Cr-Path", "X-Cr-FileName"},
 	AllowCredentials: false,
 	ExposeHeaders:    nil,
-	SameSite:         "Default",
+	SameSite:         "Lax",
 	Secure:           false,
 }
 

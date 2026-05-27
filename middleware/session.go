@@ -1,13 +1,14 @@
 package middleware
 
 import (
-	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
-	"github.com/cloudreve/Cloudreve/v3/pkg/sessionstore"
 	"net/http"
+	"net/url"
 	"strings"
 
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
 	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/pkg/sessionstore"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -62,6 +63,80 @@ func CSRFCheck() gin.HandlerFunc {
 		}
 
 		c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
+		c.Abort()
+	}
+}
+
+// CSRFProtection 通过校验 Origin/Referer 头防御 CSRF 攻击。
+// 仅校验非安全方法（POST/PUT/PATCH/DELETE），GET/HEAD/OPTIONS 直接放行。
+// 允许无 Origin 的请求（非浏览器客户端、部分隐私模式浏览器），依赖 SameSite cookie 兜底。
+func CSRFProtection() gin.HandlerFunc {
+	// 从 CORS 白名单 URL 中提取 host，用于后续比对
+	allowedHosts := make(map[string]bool)
+	allowAll := false
+	for _, o := range conf.CORSConfig.AllowOrigins {
+		if o == "*" {
+			allowAll = true
+			break
+		}
+		u, err := url.Parse(o)
+		if err == nil && u.Host != "" {
+			allowedHosts[strings.ToLower(u.Host)] = true
+		}
+	}
+
+	return func(c *gin.Context) {
+		method := c.Request.Method
+		if method == "GET" || method == "HEAD" || method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
+		origin := c.GetHeader("Origin")
+		referer := c.GetHeader("Referer")
+
+		if origin == "" && referer == "" {
+			c.Next()
+			return
+		}
+
+		var host string
+		if origin != "" {
+			u, err := url.Parse(origin)
+			if err != nil {
+				c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
+				c.Abort()
+				return
+			}
+			host = u.Host
+		} else {
+			u, err := url.Parse(referer)
+			if err != nil {
+				c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
+				c.Abort()
+				return
+			}
+			host = u.Host
+		}
+
+		if host == c.Request.Host {
+			c.Next()
+			return
+		}
+
+		if allowAll {
+			c.Next()
+			return
+		}
+
+		if allowedHosts[strings.ToLower(host)] {
+			c.Next()
+			return
+		}
+
+		util.Log().Warning("CSRF: rejected cross-origin %s %s (host=%s, reqHost=%s)",
+			method, c.Request.URL.Path, host, c.Request.Host)
+		c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Cross-origin request rejected", nil))
 		c.Abort()
 	}
 }

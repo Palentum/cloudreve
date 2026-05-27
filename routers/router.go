@@ -340,6 +340,7 @@ func InitMasterRouter() *gin.Engine {
 			share.GET("info/:id", controllers.GetShare)
 			// 创建文件下载会话
 			share.PUT("download/:id",
+				middleware.CSRFProtection(),
 				middleware.CheckShareUnlocked(),
 				middleware.BeforeShareDownload(),
 				controllers.GetShareDownload,
@@ -377,6 +378,7 @@ func InitMasterRouter() *gin.Engine {
 			)
 			// 归档打包下载
 			share.POST("archive/:id",
+				middleware.CSRFProtection(),
 				middleware.CheckShareUnlocked(),
 				middleware.BeforeShareDownload(),
 				controllers.ArchiveShare,
@@ -414,7 +416,7 @@ func InitMasterRouter() *gin.Engine {
 
 		// 需要登录保护的
 		auth := v3.Group("")
-		auth.Use(middleware.AuthRequired())
+		auth.Use(middleware.AuthRequired(), middleware.CSRFProtection())
 		{
 			// 管理
 			admin := auth.Group("admin", middleware.IsAdmin())
