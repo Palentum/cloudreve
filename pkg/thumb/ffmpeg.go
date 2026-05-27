@@ -66,9 +66,14 @@ func (f *FfmpegGenerator) Generate(ctx context.Context, file io.Reader, src, nam
 	}
 
 	// Invoke ffmpeg
+	ffmpegPath, err := ValidateExecutable(ffmpegOpts["thumb_ffmpeg_path"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid ffmpeg executable: %w", err)
+	}
+
 	scaleOpt := fmt.Sprintf("scale=%s:%s:force_original_aspect_ratio=decrease", options["thumb_width"], options["thumb_height"])
 	cmd := exec.CommandContext(ctx,
-		ffmpegOpts["thumb_ffmpeg_path"], "-ss", ffmpegOpts["thumb_ffmpeg_seek"], "-i", tempInputPath,
+		ffmpegPath, "-ss", ffmpegOpts["thumb_ffmpeg_seek"], "-i", tempInputPath,
 		"-vf", scaleOpt, "-vframes", "1", tempOutputPath)
 
 	// Redirect IO

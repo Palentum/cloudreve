@@ -66,7 +66,12 @@ func (l *LibreOfficeGenerator) Generate(ctx context.Context, file io.Reader, src
 	}
 
 	// Convert the document to an image
-	cmd := exec.CommandContext(ctx, sofficeOpts["thumb_libreoffice_path"], "--headless",
+	sofficePath, err := ValidateExecutable(sofficeOpts["thumb_libreoffice_path"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid libreoffice executable: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, sofficePath, "--headless",
 		"-nologo", "--nofirststartwizard", "--invisible", "--norestore", "--convert-to",
 		sofficeOpts["thumb_encode_method"], "--outdir", tempOutputPath, tempInputPath)
 

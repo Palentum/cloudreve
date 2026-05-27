@@ -38,8 +38,13 @@ func (v *VipsGenerator) Generate(ctx context.Context, file io.Reader, src, name 
 		outputOpt = fmt.Sprintf(".jpg[Q=%s]", vipsOpts["thumb_encode_quality"])
 	}
 
+	vipsPath, err := ValidateExecutable(vipsOpts["thumb_vips_path"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid vips executable: %w", err)
+	}
+
 	cmd := exec.CommandContext(ctx,
-		vipsOpts["thumb_vips_path"], "thumbnail_source", "[descriptor=0]", outputOpt, options["thumb_width"],
+		vipsPath, "thumbnail_source", "[descriptor=0]", outputOpt, options["thumb_width"],
 		"--height", options["thumb_height"])
 
 	tempPath := filepath.Join(

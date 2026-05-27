@@ -16,6 +16,11 @@ var (
 
 // TestGenerator tests thumb generator by getting lib version
 func TestGenerator(ctx context.Context, name, executable string) (string, error) {
+	validated, err := ValidateExecutable(executable)
+	if err != nil {
+		return "", fmt.Errorf("invalid executable: %w", err)
+	}
+	executable = validated
 	switch name {
 	case "vips":
 		return testVipsGenerator(ctx, executable)
