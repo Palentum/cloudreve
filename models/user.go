@@ -11,6 +11,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -207,6 +208,19 @@ func (user *User) SerializeOptions() (err error) {
 
 // CheckPassword 根据明文校验密码
 func (user *User) CheckPassword(password string) (bool, error) {
+	if user.Password == "" {
+		return false, errors.New("Unknown password type")
+	}
+
+	// bcrypt 格式: bcrypt:$2a$...
+	if strings.HasPrefix(user.Password, "bcrypt:") {
+		hash := strings.TrimPrefix(user.Password, "bcrypt:")
+		err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	}
 
 	// 根据存储密码拆分为 Salt 和 Digest
 	passwordStore := strings.Split(user.Password, ":")
@@ -225,7 +239,11 @@ func (user *User) CheckPassword(password string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		return bs == passwordStore[1], nil
+		if bs == passwordStore[1] {
+			user.upgradePassword(password)
+			return true, nil
+		}
+		return false, nil
 	}
 
 	//计算 Salt 和密码组合的SHA1摘要
@@ -236,25 +254,36 @@ func (user *User) CheckPassword(password string) (bool, error) {
 		return false, err
 	}
 
-	return bs == passwordStore[1], nil
+	if bs == passwordStore[1] {
+		user.upgradePassword(password)
+		return true, nil
+	}
+	return false, nil
+}
+
+// upgradePassword 将旧格式密码透明升级为 bcrypt 并持久化
+func (user *User) upgradePassword(password string) {
+	// bcrypt 截断超过 72 字节的密码，跳过升级避免下次登录失败
+	if len(password) > 72 {
+		util.Log().Warning("密码超过 72 字节，跳过 bcrypt 升级 (user ID: %d)", user.ID)
+		return
+	}
+	if err := user.SetPassword(password); err != nil {
+		util.Log().Warning("密码升级失败: %s", err)
+		return
+	}
+	if err := DB.Model(user).Update("password", user.Password).Error; err != nil {
+		util.Log().Warning("密码升级持久化失败: %s", err)
+	}
 }
 
 // SetPassword 根据给定明文设定 User 的 Password 字段
 func (user *User) SetPassword(password string) error {
-	//生成16位 Salt
-	salt := util.RandStringRunes(16)
-
-	//计算 Salt 和密码组合的SHA1摘要
-	hash := sha1.New()
-	_, err := hash.Write([]byte(password + salt))
-	bs := hex.EncodeToString(hash.Sum(nil))
-
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return err
 	}
-
-	//存储 Salt 值和摘要， ":"分割
-	user.Password = salt + ":" + string(bs)
+	user.Password = "bcrypt:" + string(hash)
 	return nil
 }
 

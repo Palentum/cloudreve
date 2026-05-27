@@ -1,7 +1,10 @@
 package model
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -121,51 +124,114 @@ func TestUser_SetPassword(t *testing.T) {
 	err := user.SetPassword("Cause Sega does what nintendon't")
 	asserts.NoError(err)
 	asserts.NotEmpty(user.Password)
+	asserts.True(strings.HasPrefix(user.Password, "bcrypt:"))
 }
 
 func TestUser_CheckPassword(t *testing.T) {
 	asserts := assert.New(t)
-	user := User{}
-	err := user.SetPassword("Cause Sega does what nintendon't")
-	asserts.NoError(err)
 
-	//密码正确
-	res, err := user.CheckPassword("Cause Sega does what nintendon't")
-	asserts.NoError(err)
-	asserts.True(res)
+	// bcrypt 密码，正确
+	{
+		user := User{}
+		err := user.SetPassword("Cause Sega does what nintendon't")
+		asserts.NoError(err)
+		res, err := user.CheckPassword("Cause Sega does what nintendon't")
+		asserts.NoError(err)
+		asserts.True(res)
+	}
 
-	//密码错误
-	res, err = user.CheckPassword("Cause Sega does what Nintendon't")
-	asserts.NoError(err)
-	asserts.False(res)
+	// bcrypt 密码，错误
+	{
+		user := User{}
+		err := user.SetPassword("Cause Sega does what nintendon't")
+		asserts.NoError(err)
+		res, err := user.CheckPassword("Cause Sega does what Nintendon't")
+		asserts.NoError(err)
+		asserts.False(res)
+	}
 
 	//密码字段为空
-	user = User{}
-	res, err = user.CheckPassword("Cause Sega does what nintendon't")
-	asserts.Error(err)
-	asserts.False(res)
+	{
+		user := User{}
+		res, err := user.CheckPassword("Cause Sega does what nintendon't")
+		asserts.Error(err)
+		asserts.False(res)
+	}
 
 	// 未知密码类型
-	user = User{}
-	user.Password = "1:2:3"
-	res, err = user.CheckPassword("Cause Sega does what nintendon't")
-	asserts.Error(err)
-	asserts.False(res)
+	{
+		user := User{}
+		user.Password = "1:2:3"
+		res, err := user.CheckPassword("Cause Sega does what nintendon't")
+		asserts.Error(err)
+		asserts.False(res)
+	}
 
 	// V2密码，错误
-	user = User{}
-	user.Password = "md5:2:3"
-	res, err = user.CheckPassword("Cause Sega does what nintendon't")
-	asserts.NoError(err)
-	asserts.False(res)
+	{
+		user := User{}
+		user.Password = "md5:2:3"
+		res, err := user.CheckPassword("Cause Sega does what nintendon't")
+		asserts.NoError(err)
+		asserts.False(res)
+	}
 
-	// V2密码，正确
-	user = User{}
-	user.Password = "md5:d8446059f8846a2c111a7f53515665fb:sdshare"
-	res, err = user.CheckPassword("admin")
-	asserts.NoError(err)
-	asserts.True(res)
+	// V2密码，正确，透明升级为 bcrypt
+	{
+		user := User{Model: gorm.Model{ID: 99}}
+		user.Password = "md5:d8446059f8846a2c111a7f53515665fb:sdshare"
+		mock.ExpectBegin()
+		mock.ExpectExec("UPDATE(.+)").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		res, err := user.CheckPassword("admin")
+		asserts.NoError(err)
+		asserts.True(res)
+		asserts.True(strings.HasPrefix(user.Password, "bcrypt:"))
+		asserts.NoError(mock.ExpectationsWereMet())
+	}
 
+	// 旧 SHA1 密码，正确，透明升级为 bcrypt
+	{
+		user := User{Model: gorm.Model{ID: 98}}
+		// 手动构造旧格式: salt:sha1(password+salt)
+		salt := "testsalt12345678"
+		user.Password = salt + ":ba4c20e78a243203756219303f2228cfb477c622"
+		mock.ExpectBegin()
+		mock.ExpectExec("UPDATE(.+)").WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		res, err := user.CheckPassword("testpassword")
+		asserts.NoError(err)
+		asserts.True(res)
+		asserts.True(strings.HasPrefix(user.Password, "bcrypt:"))
+		asserts.NoError(mock.ExpectationsWereMet())
+	}
+
+	// 旧 SHA1 密码，错误
+	{
+		user := User{}
+		salt := "testsalt12345678"
+		user.Password = salt + ":ba4c20e78a243203756219303f2228cfb477c622"
+		res, err := user.CheckPassword("wrongpassword")
+		asserts.NoError(err)
+		asserts.False(res)
+	}
+
+	// 超长密码（>72字节），跳过升级但仍然验证成功
+	{
+		user := User{Model: gorm.Model{ID: 97}}
+		salt := "testsalt12345678"
+		longPassword := strings.Repeat("a", 73)
+		// 手动计算 SHA1(salt + longPassword)
+		h := sha1.New()
+		h.Write([]byte(longPassword + salt))
+		hashHex := hex.EncodeToString(h.Sum(nil))
+		user.Password = salt + ":" + hashHex
+		res, err := user.CheckPassword(longPassword)
+		asserts.NoError(err)
+		asserts.True(res)
+		// 密码应保持旧格式，未升级
+		asserts.False(strings.HasPrefix(user.Password, "bcrypt:"))
+	}
 }
 
 func TestNewUser(t *testing.T) {
