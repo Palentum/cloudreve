@@ -282,6 +282,16 @@ func UpyunCallbackAuth() gin.HandlerFunc {
 // OneDriveCallbackAuth OneDrive回调签名验证
 func OneDriveCallbackAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		session := c.MustGet(filesystem.UploadSessionCtx).(*serializer.UploadSession)
+
+		// 验证回调签名
+		authInstance := auth.HMACAuth{SecretKey: []byte(session.CallbackSecret)}
+		if err := auth.CheckRequest(authInstance, c.Request); err != nil {
+			c.JSON(CallbackFailedStatusCode, serializer.Err(serializer.CodeCredentialInvalid, err.Error(), err))
+			c.Abort()
+			return
+		}
+
 		// 发送回调结束信号
 		mq.GlobalMQ.Publish(c.Param("sessionID"), mq.Message{})
 

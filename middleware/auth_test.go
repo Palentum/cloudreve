@@ -576,8 +576,11 @@ func TestOneDriveCallbackAuth(t *testing.T) {
 				SecretKey: "123",
 				AccessKey: "123",
 			},
+			CallbackSecret: "test-secret-key",
 		})
-		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/upyun/TestOneDriveCallbackAuth", ioutil.NopCloser(strings.NewReader("1")))
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/onedrive/finish/TestOneDriveCallbackAuth", ioutil.NopCloser(strings.NewReader("1")))
+		authInstance := auth.HMACAuth{SecretKey: []byte("test-secret-key")}
+		auth.SignRequest(authInstance, c.Request, 0)
 		res := mq.GlobalMQ.Subscribe("TestOneDriveCallbackAuth", 1)
 		AuthFunc(c)
 		select {
@@ -586,6 +589,28 @@ func TestOneDriveCallbackAuth(t *testing.T) {
 			asserts.Fail("mq message should be published")
 		}
 		asserts.False(c.IsAborted())
+	}
+
+	// 签名错误
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Params = []gin.Param{
+			{"sessionID", "TestOneDriveCallbackAuthBad"},
+		}
+		c.Set(filesystem.UploadSessionCtx, &serializer.UploadSession{
+			UID:         1,
+			VirtualPath: "/",
+			Policy: model.Policy{
+				SecretKey: "123",
+				AccessKey: "123",
+			},
+			CallbackSecret: "test-secret-key",
+		})
+		c.Request, _ = http.NewRequest("POST", "/api/v3/callback/onedrive/finish/TestOneDriveCallbackAuthBad", ioutil.NopCloser(strings.NewReader("1")))
+		wrongInstance := auth.HMACAuth{SecretKey: []byte("wrong-secret")}
+		auth.SignRequest(wrongInstance, c.Request, 0)
+		AuthFunc(c)
+		asserts.True(c.IsAborted())
 	}
 }
 

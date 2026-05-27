@@ -226,9 +226,10 @@ func (handler Driver) Token(ctx context.Context, ttl int64, uploadSession *seria
 
 	uploadSession.UploadURL = uploadURL
 	return &serializer.UploadCredential{
-		SessionID:  uploadSession.Key,
-		ChunkSize:  handler.Policy.OptionsSerialized.ChunkSize,
-		UploadURLs: []string{uploadURL},
+		SessionID:      uploadSession.Key,
+		ChunkSize:      handler.Policy.OptionsSerialized.ChunkSize,
+		UploadURLs:     []string{uploadURL},
+		CallbackSecret: uploadSession.CallbackSecret,
 	}, nil
 }
 
