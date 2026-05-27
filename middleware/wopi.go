@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"crypto/subtle"
+	"net/http"
+	"strings"
+
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
 	"github.com/cloudreve/Cloudreve/v3/pkg/wopi"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"strings"
 )
 
 const (
@@ -30,7 +32,8 @@ func WopiWriteAccess() gin.HandlerFunc {
 
 func WopiAccessValidation(w wopi.Client, store cache.Driver) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		accessToken := strings.Split(c.Query(wopi.AccessTokenQuery), ".")
+		rawToken := c.Query(wopi.AccessTokenQuery)
+		accessToken := strings.Split(rawToken, ".")
 		if len(accessToken) != 2 {
 			c.Status(http.StatusForbidden)
 			c.Header(wopi.ServerErrorHeader, "malformed access token")
@@ -47,6 +50,12 @@ func WopiAccessValidation(w wopi.Client, store cache.Driver) gin.HandlerFunc {
 		}
 
 		session := sessionRaw.(wopi.SessionCache)
+		if subtle.ConstantTimeCompare([]byte(session.AccessToken), []byte(rawToken)) != 1 {
+			c.Status(http.StatusForbidden)
+			c.Header(wopi.ServerErrorHeader, "invalid access token")
+			c.Abort()
+			return
+		}
 		user, err := model.GetActiveUserByID(session.UserID)
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
