@@ -113,110 +113,104 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, fs *filesyst
 
 // OK
 func (h *Handler) lock(now time.Time, root string, fs *filesystem.FileSystem, ls LockSystem) (token string, status int, err error) {
-	//token, err = ls.Create(now, LockDetails{
-	//	Root:      root,
-	//	Duration:  infiniteTimeout,
-	//	ZeroDepth: true,
-	//})
-	//if err != nil {
-	//	if err == ErrLocked {
-	//		return "", StatusLocked, err
-	//	}
-	//	return "", http.StatusInternalServerError, err
-	//}
-
-	return fmt.Sprintf("%d", time.Now().Unix()), 0, nil
+	token, err = ls.Create(now, LockDetails{
+		Root:      root,
+		Duration:  infiniteTimeout,
+		ZeroDepth: true,
+	})
+	if err != nil {
+		if err == ErrLocked {
+			return "", StatusLocked, err
+		}
+		return "", http.StatusInternalServerError, err
+	}
+	return token, 0, nil
 }
 
 // ok
 func (h *Handler) confirmLocks(r *http.Request, src, dst string, fs *filesystem.FileSystem) (release func(), status int, err error) {
+	hdr := r.Header.Get("If")
+	h.Mutex.Lock()
+	ls, ok := h.LockSystem[fs.User.ID]
+	h.Mutex.Unlock()
+	if !ok {
+		return nil, http.StatusInternalServerError, errNoLockSystem
+	}
 
-	//hdr := r.Header.Get("If")
-	//h.Mutex.Lock()
-	//ls,ok := h.LockSystem[fs.User.ID]
-	//h.Mutex.Unlock()
-	//if !ok{
-	//	return nil, http.StatusInternalServerError, errNoLockSystem
-	//}
-	//
-	//if hdr == "" {
-	//	// An empty If header means that the client hasn't previously created locks.
-	//	// Even if this client doesn't care about locks, we still need to check that
-	//	// the resources aren't locked by another client, so we create temporary
-	//	// locks that would conflict with another client's locks. These temporary
-	//	// locks are unlocked at the end of the HTTP request.
-	//	now, srcToken, dstToken := time.Now(), "", ""
-	//	if src != "" {
-	//		srcToken, status, err = h.lock(now, src, fs,ls)
-	//		if err != nil {
-	//			return nil, status, err
-	//		}
-	//	}
-	//	if dst != "" {
-	//		dstToken, status, err = h.lock(now, dst, fs,ls)
-	//		if err != nil {
-	//			if srcToken != "" {
-	//				ls.Unlock(now, srcToken)
-	//			}
-	//			return nil, status, err
-	//		}
-	//	}
-	//
-	//	return func() {
-	//		if dstToken != "" {
-	//			ls.Unlock(now, dstToken)
-	//		}
-	//		if srcToken != "" {
-	//			ls.Unlock(now, srcToken)
-	//		}
-	//	}, 0, nil
-	//}
-	//
-	//ih, ok := parseIfHeader(hdr)
-	//if !ok {
-	//	return nil, http.StatusBadRequest, errInvalidIfHeader
-	//}
-	//// ih is a disjunction (OR) of ifLists, so any ifList will do.
-	//for _, l := range ih.lists {
-	//	lsrc := l.resourceTag
-	//	if lsrc == "" {
-	//		lsrc = src
-	//	} else {
-	//		u, err := url.Parse(lsrc)
-	//		if err != nil {
-	//			continue
-	//		}
-	//		//if u.Host != r.Host {
-	//		//	continue
-	//		//}
-	//		lsrc, status, err = h.stripPrefix(u.Path, fs.User.ID)
-	//		if err != nil {
-	//			return nil, status, err
-	//		}
-	//	}
-	//	release, err = ls.Confirm(
-	//		time.Now(),
-	//		lsrc,
-	//		dst,
-	//		l.conditions...,
-	//	)
-	//	if err == ErrConfirmationFailed {
-	//		continue
-	//	}
-	//	if err != nil {
-	//		return nil, http.StatusInternalServerError, err
-	//	}
-	//	return release, 0, nil
-	//}
-	//// Section 10.4.1 says that "If this header is evaluated and all state lists
-	//// fail, then the request must fail with a 412 (Precondition Failed) status."
-	//// We follow the spec even though the cond_put_corrupt_token test case from
-	//// the litmus test warns on seeing a 412 instead of a 423 (Locked).
-	//return nil, http.StatusPreconditionFailed, ErrLocked
+	if hdr == "" {
+		// An empty If header means that the client hasn't previously created locks.
+		// Even if this client doesn't care about locks, we still need to check that
+		// the resources aren't locked by another client, so we create temporary
+		// locks that would conflict with another client's locks. These temporary
+		// locks are unlocked at the end of the HTTP request.
+		now, srcToken, dstToken := time.Now(), "", ""
+		if src != "" {
+			srcToken, status, err = h.lock(now, src, fs, ls)
+			if err != nil {
+				return nil, status, err
+			}
+		}
+		if dst != "" {
+			dstToken, status, err = h.lock(now, dst, fs, ls)
+			if err != nil {
+				if srcToken != "" {
+					ls.Unlock(now, srcToken)
+				}
+				return nil, status, err
+			}
+		}
 
-	return func() {
+		return func() {
+			if dstToken != "" {
+				ls.Unlock(now, dstToken)
+			}
+			if srcToken != "" {
+				ls.Unlock(now, srcToken)
+			}
+		}, 0, nil
+	}
 
-	}, 0, nil
+	ih, ok := parseIfHeader(hdr)
+	if !ok {
+		return nil, http.StatusBadRequest, errInvalidIfHeader
+	}
+	// ih is a disjunction (OR) of ifLists, so any ifList will do.
+	for _, l := range ih.lists {
+		lsrc := l.resourceTag
+		if lsrc == "" {
+			lsrc = src
+		} else {
+			u, err := url.Parse(lsrc)
+			if err != nil {
+				continue
+			}
+			//if u.Host != r.Host {
+			//	continue
+			//}
+			lsrc, status, err = h.stripPrefix(u.Path, fs.User.ID)
+			if err != nil {
+				return nil, status, err
+			}
+		}
+		release, err = ls.Confirm(
+			time.Now(),
+			lsrc,
+			dst,
+			l.conditions...,
+		)
+		if err == ErrConfirmationFailed {
+			continue
+		}
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return release, 0, nil
+	}
+	// Section 10.4.1 says that "If this header is evaluated and all state lists
+	// fail, then the request must fail with a 412 (Precondition Failed) status."
+	// We follow the spec even though the cond_put_corrupt_token test case from
+	// the litmus test warns on seeing a 412 instead of a 423 (Locked).
+	return nil, http.StatusPreconditionFailed, ErrLocked
 }
 
 // OK
@@ -584,120 +578,104 @@ func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request, fs *filesys
 		return status, err
 	}
 
-	////ctx := r.Context()
-	//token, ld, now, created := "", LockDetails{}, time.Now(), false
-	//if li == (lockInfo{}) {
-	//	// An empty lockInfo means to refresh the lock.
-	//	ih, ok := parseIfHeader(r.Header.Get("If"))
-	//	if !ok {
-	//		return http.StatusBadRequest, errInvalidIfHeader
-	//	}
-	//	if len(ih.lists) == 1 && len(ih.lists[0].conditions) == 1 {
-	//		token = ih.lists[0].conditions[0].Token
-	//	}
-	//	if token == "" {
-	//		return http.StatusBadRequest, errInvalidLockToken
-	//	}
-	//	ld, err = ls.Refresh(now, token, duration)
-	//	if err != nil {
-	//		if err == ErrNoSuchLock {
-	//			return http.StatusPreconditionFailed, err
-	//		}
-	//		return http.StatusInternalServerError, err
-	//	}
-	//
-	//} else {
-	//	// Section 9.10.3 says that "If no Depth header is submitted on a LOCK request,
-	//	// then the request MUST act as if a "Depth:infinity" had been submitted."
-	//	depth := infiniteDepth
-	//	if hdr := r.Header.Get("Depth"); hdr != "" {
-	//		depth = parseDepth(hdr)
-	//		if depth != 0 && depth != infiniteDepth {
-	//			// Section 9.10.3 says that "Values other than 0 or infinity must not be
-	//			// used with the Depth header on a LOCK method".
-	//			return http.StatusBadRequest, errInvalidDepth
-	//		}
-	//	}
-	//	reqPath, status, err := h.stripPrefix(r.URL.Path, fs.User.ID)
-	//	if err != nil {
-	//		return status, err
-	//	}
-	//	ld = LockDetails{
-	//		Root:      reqPath,
-	//		Duration:  duration,
-	//		OwnerXML:  li.Owner.InnerXML,
-	//		ZeroDepth: depth == 0,
-	//	}
-	//	token, err = ls.Create(now, ld)
-	//	if err != nil {
-	//		if err == ErrLocked {
-	//			return StatusLocked, err
-	//		}
-	//		return http.StatusInternalServerError, err
-	//	}
-	//	defer func() {
-	//		if retErr != nil {
-	//			ls.Unlock(now, token)
-	//		}
-	//	}()
-	//
-	//	// Create the resource if it didn't previously exist.
-	//	//if _, err := h.FileSystem.Stat(ctx, reqPath); err != nil {
-	//	//	f, err := h.FileSystem.OpenFile(ctx, reqPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	//	//	if err != nil {
-	//	//		// TODO: detect missing intermediate dirs and return http.StatusConflict?
-	//	//		return http.StatusInternalServerError, err
-	//	//	}
-	//	//	f.Close()
-	//	//	created = true
-	//	//}
-	//
-	//	// http://www.webdav.org/specs/rfc4918.html#HEADER_Lock-Token says that the
-	//	// Lock-Token value is a Coded-URL. We add angle brackets.
-	//	w.Header().Set("Lock-Token", "<"+token+">")
-	//}
-	//
-	//w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-	//if created {
-	//	// This is "w.WriteHeader(http.StatusCreated)" and not "return
-	//	// http.StatusCreated, nil" because we write our own (XML) response to w
-	//	// and Handler.ServeHTTP would otherwise write "Created".
-	//	w.WriteHeader(http.StatusCreated)
-	//}
+	li, status, err := readLockInfo(r.Body)
+	if err != nil {
+		return status, err
+	}
 
-	writeLockInfo(w, fmt.Sprintf("%d", time.Now().UnixNano()), LockDetails{
-		Duration: duration,
-		OwnerXML: fs.User.Email,
-		Root:     reqPath,
-	})
+	token, ld, now, created := "", LockDetails{}, time.Now(), false
+	if li == (lockInfo{}) {
+		// An empty lockInfo means to refresh the lock.
+		ih, ok := parseIfHeader(r.Header.Get("If"))
+		if !ok {
+			return http.StatusBadRequest, errInvalidIfHeader
+		}
+		if len(ih.lists) == 1 && len(ih.lists[0].conditions) == 1 {
+			token = ih.lists[0].conditions[0].Token
+		}
+		if token == "" {
+			return http.StatusBadRequest, errInvalidLockToken
+		}
+		ld, err = ls.Refresh(now, token, duration)
+		if err != nil {
+			if err == ErrNoSuchLock {
+				return http.StatusPreconditionFailed, err
+			}
+			return http.StatusInternalServerError, err
+		}
+
+	} else {
+		// Section 9.10.3 says that "If no Depth header is submitted on a LOCK request,
+		// then the request MUST act as if a "Depth:infinity" had been submitted."
+		depth := infiniteDepth
+		if hdr := r.Header.Get("Depth"); hdr != "" {
+			depth = parseDepth(hdr)
+			if depth != 0 && depth != infiniteDepth {
+				// Section 9.10.3 says that "Values other than 0 or infinity must not be
+				// used with the Depth header on a LOCK method".
+				return http.StatusBadRequest, errInvalidDepth
+			}
+		}
+		ld = LockDetails{
+			Root:      reqPath,
+			Duration:  duration,
+			OwnerXML:  li.Owner.InnerXML,
+			ZeroDepth: depth == 0,
+		}
+		token, err = ls.Create(now, ld)
+		if err != nil {
+			if err == ErrLocked {
+				return StatusLocked, err
+			}
+			return http.StatusInternalServerError, err
+		}
+		defer func() {
+			if retErr != nil {
+				ls.Unlock(now, token)
+			}
+		}()
+		created = true
+
+		// http://www.webdav.org/specs/rfc4918.html#HEADER_Lock-Token says that the
+		// Lock-Token value is a Coded-URL. We add angle brackets.
+		w.Header().Set("Lock-Token", "<"+token+">")
+	}
+
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	if created {
+		// This is "w.WriteHeader(http.StatusCreated)" and not "return
+		// http.StatusCreated, nil" because we write our own (XML) response to w
+		// and Handler.ServeHTTP would otherwise write "Created".
+		w.WriteHeader(http.StatusCreated)
+	}
+	writeLockInfo(w, token, ld)
 	return 0, nil
 }
 
 // OK
 func (h *Handler) handleUnlock(w http.ResponseWriter, r *http.Request, fs *filesystem.FileSystem, ls LockSystem) (status int, err error) {
 	defer fs.Recycle()
-	return http.StatusNoContent, err
 
-	//// http://www.webdav.org/specs/rfc4918.html#HEADER_Lock-Token says that the
-	//// Lock-Token value is a Coded-URL. We strip its angle brackets.
-	//t := r.Header.Get("Lock-Token")
-	//if len(t) < 2 || t[0] != '<' || t[len(t)-1] != '>' {
-	//	return http.StatusBadRequest, errInvalidLockToken
-	//}
-	//t = t[1 : len(t)-1]
-	//
-	//switch err = ls.Unlock(time.Now(), t); err {
-	//case nil:
-	//	return http.StatusNoContent, err
-	//case ErrForbidden:
-	//	return http.StatusForbidden, err
-	//case ErrLocked:
-	//	return StatusLocked, err
-	//case ErrNoSuchLock:
-	//	return http.StatusConflict, err
-	//default:
-	//	return http.StatusInternalServerError, err
-	//}
+	// http://www.webdav.org/specs/rfc4918.html#HEADER_Lock-Token says that the
+	// Lock-Token value is a Coded-URL. We strip its angle brackets.
+	t := r.Header.Get("Lock-Token")
+	if len(t) < 2 || t[0] != '<' || t[len(t)-1] != '>' {
+		return http.StatusBadRequest, errInvalidLockToken
+	}
+	t = t[1 : len(t)-1]
+
+	switch err = ls.Unlock(time.Now(), t); err {
+	case nil:
+		return http.StatusNoContent, err
+	case ErrForbidden:
+		return http.StatusForbidden, err
+	case ErrLocked:
+		return StatusLocked, err
+	case ErrNoSuchLock:
+		return http.StatusConflict, err
+	default:
+		return http.StatusInternalServerError, err
+	}
 }
 
 // OK
