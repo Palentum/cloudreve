@@ -102,7 +102,7 @@ func WebDAVAuth() gin.HandlerFunc {
 		}
 
 		// 密码正确？
-		webdav, err := model.GetWebdavByPassword(password, expectedUser.ID)
+		webdav, err := model.GetWebdavByAccount(password, expectedUser.ID)
 		if err != nil {
 			c.Status(http.StatusUnauthorized)
 			c.Abort()

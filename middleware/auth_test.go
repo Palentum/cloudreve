@@ -24,18 +24,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var currentDB *sql.DB
+
 var mock sqlmock.Sqlmock
 
-// TestMain 初始化数据库Mock
-func TestMain(m *testing.M) {
-	var db *sql.DB
-	var err error
-	db, mock, err = sqlmock.New()
+// newMock 创建新的 sqlmock 实例并替换全局 DB
+func newMock() sqlmock.Sqlmock {
+	if currentDB != nil {
+		currentDB.Close()
+	}
+	db, m, err := sqlmock.New()
 	if err != nil {
 		panic("An error was not expected when opening a stub database connection")
 	}
+	currentDB = db
 	model.DB, _ = gorm.Open("mysql", db)
-	defer db.Close()
+	return m
+}
+
+// TestMain 初始化数据库Mock
+func TestMain(m *testing.M) {
+	mock = newMock()
+	defer func() {
+		if currentDB != nil {
+			currentDB.Close()
+		}
+	}()
 	m.Run()
 }
 
@@ -120,6 +134,8 @@ func TestWebDAVAuth(t *testing.T) {
 	asserts := assert.New(t)
 	rec := httptest.NewRecorder()
 	AuthFunc := WebDAVAuth()
+	// 每个子用例使用独立的 sqlmock，避免期望互相干扰
+	mock = newMock()
 
 	// options请求跳过验证
 	{
@@ -152,7 +168,7 @@ func TestWebDAVAuth(t *testing.T) {
 		asserts.Equal(c.Writer.Status(), http.StatusUnauthorized)
 	}
 
-	// 密码错误
+	// 密码错误 — 无 group_id 所以不触发 preload，webdavs 返回空结果
 	{
 		c, _ := gin.CreateTestContext(rec)
 		c.Request, _ = http.NewRequest("POST", "/test", nil)
@@ -163,14 +179,15 @@ func TestWebDAVAuth(t *testing.T) {
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "password", "email", "options"}).AddRow(1, "123", "who@cloudreve.org", "{}"),
 			)
-		// 查找密码
-		mock.ExpectQuery("SELECT(.+)webdav(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		// GetWebdavByAccount: 无匹配账户
+		mock.ExpectQuery("SELECT(.+)webdavs(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "password"}))
 		AuthFunc(c)
 		asserts.NoError(mock.ExpectationsWereMet())
 		asserts.Equal(c.Writer.Status(), http.StatusUnauthorized)
 	}
 
-	//未启用 WebDAV
+	//未启用 WebDAV — 有 group_id 触发 preload: users → groups(preload) → webdavs
+	mock = newMock()
 	{
 		c, _ := gin.CreateTestContext(rec)
 		c.Request, _ = http.NewRequest("POST", "/test", nil)
@@ -188,15 +205,17 @@ func TestWebDAVAuth(t *testing.T) {
 						"{}",
 					),
 			)
+		// auto-preload groups
 		mock.ExpectQuery("SELECT(.+)groups(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "web_dav_enabled"}).AddRow(1, false))
-		// 查找密码
-		mock.ExpectQuery("SELECT(.+)webdav(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+		// GetWebdavByAccount: webdavs 查询
+		mock.ExpectQuery("SELECT(.+)webdavs(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "password"}).AddRow(1, "$2a$12$v7AvvcUNSM..pigCY3KJDOWkytYmytDd566yOZDMVC6GjgiXXW/U."))
 		AuthFunc(c)
 		asserts.NoError(mock.ExpectationsWereMet())
 		asserts.Equal(c.Writer.Status(), http.StatusForbidden)
 	}
 
 	//正常
+	mock = newMock()
 	{
 		c, _ := gin.CreateTestContext(rec)
 		c.Request, _ = http.NewRequest("POST", "/test", nil)
@@ -214,9 +233,10 @@ func TestWebDAVAuth(t *testing.T) {
 						"{}",
 					),
 			)
+		// auto-preload groups
 		mock.ExpectQuery("SELECT(.+)groups(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "web_dav_enabled"}).AddRow(1, true))
-		// 查找密码
-		mock.ExpectQuery("SELECT(.+)webdav(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+		// GetWebdavByAccount: webdavs 查询
+		mock.ExpectQuery("SELECT(.+)webdavs(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "password"}).AddRow(1, "$2a$12$v7AvvcUNSM..pigCY3KJDOWkytYmytDd566yOZDMVC6GjgiXXW/U."))
 		AuthFunc(c)
 		asserts.NoError(mock.ExpectationsWereMet())
 		asserts.Equal(c.Writer.Status(), 200)

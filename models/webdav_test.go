@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 	"testing"
 )
 
@@ -34,12 +35,80 @@ func TestWebdav_Create(t *testing.T) {
 	}
 }
 
-func TestGetWebdavByPassword(t *testing.T) {
+func TestHashWebdavPassword(t *testing.T) {
 	asserts := assert.New(t)
-	mock.ExpectQuery("SELECT(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}))
-	_, err := GetWebdavByPassword("e", 1)
-	asserts.NoError(mock.ExpectationsWereMet())
+
+	hash, err := HashWebdavPassword("testpassword")
+	asserts.NoError(err)
+	asserts.NotEmpty(hash)
+
+	// 验证生成的哈希可以被 bcrypt 正确比较
+	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte("testpassword"))
+	asserts.NoError(err)
+
+	// 验证错误密码不匹配
+	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte("wrongpassword"))
 	asserts.Error(err)
+}
+
+func TestWebdav_SetPassword(t *testing.T) {
+	asserts := assert.New(t)
+
+	webdav := &Webdav{}
+	err := webdav.SetPassword("mypassword")
+	asserts.NoError(err)
+	asserts.NotEmpty(webdav.Password)
+
+	// 验证 bcrypt 格式
+	asserts.True(len(webdav.Password) > 0)
+	err = bcrypt.CompareHashAndPassword([]byte(webdav.Password), []byte("mypassword"))
+	asserts.NoError(err)
+}
+
+func TestWebdav_CheckPassword(t *testing.T) {
+	asserts := assert.New(t)
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct"), 12)
+	webdav := &Webdav{Password: string(hash)}
+
+	asserts.True(webdav.CheckPassword("correct"))
+	asserts.False(webdav.CheckPassword("wrong"))
+}
+
+func TestGetWebdavByAccount(t *testing.T) {
+	asserts := assert.New(t)
+
+	// 生成测试用 bcrypt 哈希
+	hash, _ := bcrypt.GenerateFromPassword([]byte("testpass"), 12)
+
+	// 成功匹配
+	{
+		rows := sqlmock.NewRows([]string{"id", "password", "user_id"}).
+			AddRow(1, string(hash), 1)
+		mock.ExpectQuery("SELECT(.+)").WillReturnRows(rows)
+		webdav, err := GetWebdavByAccount("testpass", 1)
+		asserts.NoError(mock.ExpectationsWereMet())
+		asserts.NoError(err)
+		asserts.EqualValues(1, webdav.ID)
+	}
+
+	// 密码不匹配
+	{
+		rows := sqlmock.NewRows([]string{"id", "password", "user_id"}).
+			AddRow(1, string(hash), 1)
+		mock.ExpectQuery("SELECT(.+)").WillReturnRows(rows)
+		_, err := GetWebdavByAccount("wrongpass", 1)
+		asserts.NoError(mock.ExpectationsWereMet())
+		asserts.Error(err)
+	}
+
+	// 无记录
+	{
+		mock.ExpectQuery("SELECT(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}))
+		_, err := GetWebdavByAccount("e", 1)
+		asserts.NoError(mock.ExpectationsWereMet())
+		asserts.Error(err)
+	}
 }
 
 func TestListWebDAVAccounts(t *testing.T) {

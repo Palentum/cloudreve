@@ -38,10 +38,15 @@ type WebDAVMountCreateService struct {
 // Create 创建WebDAV账户
 func (service *WebDAVAccountCreateService) Create(c *gin.Context, user *model.User) serializer.Response {
 	account := model.Webdav{
-		Name:     service.Name,
-		Password: util.RandStringRunes(32),
-		UserID:   user.ID,
-		Root:     service.Path,
+		Name:   service.Name,
+		UserID: user.ID,
+		Root:   service.Path,
+	}
+
+	// 生成明文密码并哈希存储
+	plainPassword := util.RandStringRunes(32)
+	if err := account.SetPassword(plainPassword); err != nil {
+		return serializer.Err(serializer.CodeDBError, "密码哈希失败", err)
 	}
 
 	if _, err := account.Create(); err != nil {
@@ -51,7 +56,7 @@ func (service *WebDAVAccountCreateService) Create(c *gin.Context, user *model.Us
 	return serializer.Response{
 		Data: map[string]interface{}{
 			"id":         account.ID,
-			"password":   account.Password,
+			"password":   plainPassword,
 			"created_at": account.CreatedAt,
 		},
 	}
