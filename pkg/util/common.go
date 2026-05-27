@@ -1,24 +1,35 @@
 package util
 
 import (
-	"math/rand"
+	cryptorand "crypto/rand"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+const letterRunes = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const letterRunesLen = len(letterRunes) // 62
 
-// RandStringRunes 返回随机字符串
+// RandStringRunes 返回密码学安全的随机字符串（拒绝采样消除偏差）
 func RandStringRunes(n int) string {
-	var letterRunes = []rune("1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	b := make([]byte, n)
+	// 256 - (256 % 62) = 248，丢弃 [248,255] 以消除模偏差
+	const maxValid = byte(256 - 256%letterRunesLen)
+	buf := make([]byte, n)
+	i := 0
+	for i < n {
+		if _, err := cryptorand.Read(buf); err != nil {
+			panic("util: 无法生成安全随机数: " + err.Error())
+		}
+		for _, v := range buf {
+			if v < maxValid {
+				b[i] = letterRunes[v%byte(letterRunesLen)]
+				i++
+				if i >= n {
+					break
+				}
+			}
+		}
 	}
 	return string(b)
 }
