@@ -23,4 +23,6 @@ var (
 	ErrDBListObjects            = serializer.NewError(serializer.CodeDBError, "Failed to list object records", nil)
 	ErrDBDeleteObjects          = serializer.NewError(serializer.CodeDBError, "Failed to delete object records", nil)
 	ErrOneObjectOnly            = serializer.ParamErr("You can only copy one object at the same time", nil)
+	ErrArchiveTooManyFiles      = serializer.NewError(serializer.CodeFileTooLarge, "Archive contains too many files", nil)
+	ErrArchiveTooLarge          = serializer.NewError(serializer.CodeFileTooLarge, "Archive total uncompressed size exceeds limit", nil)
 )

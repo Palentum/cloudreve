@@ -164,6 +164,34 @@ func (fs *FileSystem) doCompress(ctx context.Context, file *model.File, folder *
 	}
 }
 
+// archiveSizeLimitWriter 包装 io.Writer，写入超过限制时停止并标记
+type archiveSizeLimitWriter struct {
+	w       io.Writer
+	limit   int64
+	written int64
+	exceeded bool
+}
+
+func (lw *archiveSizeLimitWriter) Write(p []byte) (int, error) {
+	if lw.exceeded {
+		return 0, ErrArchiveTooLarge
+	}
+	remaining := lw.limit - lw.written
+	if int64(len(p)) > remaining {
+		// 写入到限制值后标记超限，后续数据不再写入
+		n, err := lw.w.Write(p[:remaining])
+		lw.written += int64(n)
+		lw.exceeded = true
+		if err != nil {
+			return n, err
+		}
+		return n, ErrArchiveTooLarge
+	}
+	n, err := lw.w.Write(p)
+	lw.written += int64(n)
+	return n, err
+}
+
 // Decompress 解压缩给定压缩文件到dst目录
 func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string) error {
 	err := fs.ResetFileIfNotExist(ctx, src)
@@ -226,10 +254,22 @@ func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string)
 	// 除了zip必须下载到本地，其余的可以边下载边解压
 	reader := readStream
 	if isZip {
-		_, err = io.Copy(zipFile, readStream)
+		// 限制zip临时文件下载大小，防止磁盘耗尽
+		maxArchiveDownloadSize := int64(model.GetIntSetting("max_archive_download_size", 0))
+		var writeTarget io.Writer = zipFile
+		var limitChecker *archiveSizeLimitWriter
+		if maxArchiveDownloadSize > 0 {
+			limitChecker = &archiveSizeLimitWriter{w: zipFile, limit: maxArchiveDownloadSize}
+			writeTarget = limitChecker
+		}
+		_, err = io.Copy(writeTarget, readStream)
 		if err != nil {
 			util.Log().Warning("Failed to write temp archive file %q: %s", tempZipFilePath, err)
 			return err
+		}
+		if limitChecker != nil && limitChecker.exceeded {
+			util.Log().Warning("Archive download exceeds size limit of %d bytes", maxArchiveDownloadSize)
+			return ErrArchiveTooLarge
 		}
 
 		fileStream.Close()
@@ -278,6 +318,12 @@ func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string)
 		}
 	}
 
+	// 解压缩安全限制
+	maxDecompressFiles := model.GetIntSetting("max_decompress_files", 10000)
+	maxDecompressTotalSize := uint64(model.GetIntSetting("max_decompress_total_size", 0))
+	var totalExtractedSize uint64
+	var extractedFileCount int
+
 	// 解压缩文件，回调函数如果出错会停止解压的下一步进行，全部return nil
 	err = extractor.Extract(ctx, reader, nil, func(ctx context.Context, f archiver.File) error {
 		rawPath := util.FormSlash(f.NameInArchive)
@@ -294,6 +340,23 @@ func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string)
 			return nil
 		}
 
+		// 检查文件数量限制
+		extractedFileCount++
+		if extractedFileCount > maxDecompressFiles {
+			util.Log().Warning("Archive contains too many files (limit: %d)", maxDecompressFiles)
+			return ErrArchiveTooManyFiles
+		}
+
+		// 检查累计解压大小限制
+		fileSize := uint64(f.FileInfo.Size())
+		if maxDecompressTotalSize > 0 {
+			totalExtractedSize += fileSize
+			if totalExtractedSize > maxDecompressTotalSize {
+				util.Log().Warning("Archive total uncompressed size exceeds limit of %d bytes", maxDecompressTotalSize)
+				return ErrArchiveTooLarge
+			}
+		}
+
 		// 上传文件
 		fileStream, err := f.Open()
 		if err != nil {
@@ -302,11 +365,11 @@ func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string)
 		}
 
 		if !isZip {
-			uploadFunc(fileStream, f.FileInfo.Size(), savePath, rawPath)
+			uploadFunc(fileStream, int64(fileSize), savePath, rawPath)
 		} else {
 			<-worker
 			wg.Add(1)
-			go uploadFunc(fileStream, f.FileInfo.Size(), savePath, rawPath)
+			go uploadFunc(fileStream, int64(fileSize), savePath, rawPath)
 		}
 		return nil
 	})
