@@ -29,6 +29,8 @@ func InitRouter() *gin.Engine {
 // InitSlaveRouter 初始化从机模式路由
 func InitSlaveRouter() *gin.Engine {
 	r := gin.Default()
+	// 全局安全响应头
+	r.Use(middleware.SecurityHeaders())
 	// 跨域相关
 	InitCORS(r)
 	v3 := r.Group("/api/v3/slave")
@@ -117,6 +119,9 @@ func InitCORS(router *gin.Engine) {
 // InitMasterRouter 初始化主机模式路由
 func InitMasterRouter() *gin.Engine {
 	r := gin.Default()
+
+	// 全局安全响应头
+	r.Use(middleware.SecurityHeaders())
 
 	/*
 		静态资源
