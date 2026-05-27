@@ -537,6 +537,35 @@ func TestFileSystem_GetPhysicalFileContent(t *testing.T) {
 		asserts.NoError(rs.Close())
 		asserts.NotNil(rs)
 	}
+
+	// 路径遍历攻击应被阻止
+	{
+		rs, err := fs.GetPhysicalFileContent(ctx, "../../../etc/passwd")
+		asserts.Error(err)
+		asserts.Nil(rs)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	{
+		rs, err := fs.GetPhysicalFileContent(ctx, "subdir/../../etc/passwd")
+		asserts.Error(err)
+		asserts.Nil(rs)
+		asserts.Contains(err.Error(), "path traversal")
+	}
+
+	// 文件名包含 ".." 是合法的，不应被拒绝
+	{
+		testFile, err := os.Create(util.RelativePath("my..file.txt"))
+		asserts.NoError(err)
+		asserts.NoError(testFile.Close())
+
+		rs, err := fs.GetPhysicalFileContent(ctx, "my..file.txt")
+		asserts.NoError(err)
+		asserts.NotNil(rs)
+		if rs != nil {
+			asserts.NoError(rs.Close())
+		}
+	}
 }
 
 func TestFileSystem_Preview(t *testing.T) {

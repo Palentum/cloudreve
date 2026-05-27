@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
@@ -79,12 +81,20 @@ func (fs *FileSystem) AddFile(ctx context.Context, parent *model.Folder, file fs
 
 // GetPhysicalFileContent 根据文件物理路径获取文件流
 func (fs *FileSystem) GetPhysicalFileContent(ctx context.Context, path string) (response.RSCloser, error) {
+	// 路径安全校验：清理路径并防止目录遍历
+	cleaned := filepath.Clean(path)
+	for _, part := range strings.Split(cleaned, "/") {
+		if part == ".." {
+			return nil, fmt.Errorf("invalid path: path traversal not allowed")
+		}
+	}
+
 	// 重设上传策略
 	fs.Policy = &model.Policy{Type: "local"}
 	_ = fs.DispatchHandler()
 
 	// 获取文件流
-	rs, err := fs.Handler.Get(ctx, path)
+	rs, err := fs.Handler.Get(ctx, cleaned)
 	if err != nil {
 		return nil, err
 	}
