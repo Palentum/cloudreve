@@ -4,7 +4,6 @@ import (
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cluster"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
-	"strings"
 )
 
 // AddNodeService 节点添加服务
@@ -31,27 +30,28 @@ func (service *AddNodeService) Add() serializer.Response {
 	return serializer.Response{Data: service.Node.ID}
 }
 
+// nodeSearchColumns 节点表允许搜索/过滤/排序的列
+var nodeSearchColumns = map[string]bool{
+	"id": true, "name": true, "status": true, "type": true,
+	"server": true, "rank": true, "aria2_enabled": true,
+}
+
 // Nodes 列出从机节点
 func (service *AdminListService) Nodes() serializer.Response {
 	var res []model.Node
 	total := 0
 
 	tx := model.DB.Model(&model.Node{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, nodeSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, nodeSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
-	if len(service.Searches) > 0 {
-		search := ""
-		for k, v := range service.Searches {
-			search += k + " like '%" + v + "%' OR "
-		}
-		search = strings.TrimSuffix(search, " OR ")
-		tx = tx.Where(search)
+	if search, args := buildSafeSearch(service.Searches, nodeSearchColumns); search != "" {
+		tx = tx.Where(search, args...)
 	}
 
 	// 计算总数用于分页

@@ -311,18 +311,24 @@ func (service *PathTestService) Test() serializer.Response {
 	return serializer.Response{}
 }
 
+// policySearchColumns 存储策略表允许过滤/排序的列
+var policySearchColumns = map[string]bool{
+	"id": true, "name": true, "type": true, "server": true,
+	"bucket_name": true, "is_private": true, "max_size": true,
+}
+
 // Policies 列出存储策略
 func (service *AdminListService) Policies() serializer.Response {
 	var res []model.Policy
 	total := 0
 
 	tx := model.DB.Model(&model.Policy{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, policySearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, policySearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
 	// 计算总数用于分页

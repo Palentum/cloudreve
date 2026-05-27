@@ -68,18 +68,23 @@ func (service *AddGroupService) Add() serializer.Response {
 	return serializer.Response{Data: service.Group.ID}
 }
 
+// groupSearchColumns 用户组表允许过滤/排序的列
+var groupSearchColumns = map[string]bool{
+	"id": true, "name": true, "share_enabled": true, "webdav_enabled": true,
+}
+
 // Groups 列出用户组
 func (service *AdminListService) Groups() serializer.Response {
 	var res []model.Group
 	total := 0
 
 	tx := model.DB.Model(&model.Group{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, groupSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, groupSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
 	// 计算总数用于分页

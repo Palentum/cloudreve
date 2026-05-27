@@ -2,7 +2,6 @@ package admin
 
 import (
 	"context"
-	"strings"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
@@ -153,27 +152,28 @@ func (service *FileService) Get(c *gin.Context) serializer.Response {
 	return res
 }
 
+// fileSearchColumns 文件表允许搜索/过滤/排序的列
+var fileSearchColumns = map[string]bool{
+	"id": true, "name": true, "source_name": true, "user_id": true,
+	"size": true, "folder_id": true, "policy_id": true,
+}
+
 // Files 列出文件
 func (service *AdminListService) Files() serializer.Response {
 	var res []model.File
 	total := 0
 
 	tx := model.DB.Model(&model.File{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, fileSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, fileSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
-	if len(service.Searches) > 0 {
-		search := ""
-		for k, v := range service.Searches {
-			search += k + " like '%" + v + "%' OR "
-		}
-		search = strings.TrimSuffix(search, " OR ")
-		tx = tx.Where(search)
+	if search, args := buildSafeSearch(service.Searches, fileSearchColumns); search != "" {
+		tx = tx.Where(search, args...)
 	}
 
 	// 计算总数用于分页

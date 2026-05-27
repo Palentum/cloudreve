@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"strings"
-
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/hashid"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
@@ -22,27 +20,29 @@ func (service *ShareBatchService) Delete(c *gin.Context) serializer.Response {
 	return serializer.Response{}
 }
 
+// shareSearchColumns 分享表允许搜索/过滤/排序的列
+var shareSearchColumns = map[string]bool{
+	"id": true, "source_name": true, "user_id": true, "source_id": true,
+	"is_dir": true, "preview_enabled": true, "password": true,
+	"views": true, "downloads": true,
+}
+
 // Shares 列出分享
 func (service *AdminListService) Shares() serializer.Response {
 	var res []model.Share
 	total := 0
 
 	tx := model.DB.Model(&model.Share{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, shareSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, shareSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
-	if len(service.Searches) > 0 {
-		search := ""
-		for k, v := range service.Searches {
-			search += k + " like '%" + v + "%' OR "
-		}
-		search = strings.TrimSuffix(search, " OR ")
-		tx = tx.Where(search)
+	if search, args := buildSafeSearch(service.Searches, shareSearchColumns); search != "" {
+		tx = tx.Where(search, args...)
 	}
 
 	// 计算总数用于分页

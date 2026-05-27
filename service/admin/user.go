@@ -2,7 +2,6 @@ package admin
 
 import (
 	"context"
-	"strings"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem"
@@ -134,27 +133,28 @@ func (service *AddUserService) Add() serializer.Response {
 	return serializer.Response{Data: service.User.ID}
 }
 
+// userSearchColumns 用户表允许搜索/过滤/排序的列
+var userSearchColumns = map[string]bool{
+	"id": true, "email": true, "nick": true, "status": true,
+	"group_id": true, "storage": true,
+}
+
 // Users 列出用户
 func (service *AdminListService) Users() serializer.Response {
 	var res []model.User
 	total := 0
 
 	tx := model.DB.Model(&model.User{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, userSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, userSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
-	if len(service.Searches) > 0 {
-		search := ""
-		for k, v := range service.Searches {
-			search += (k + " like '%" + v + "%' OR ")
-		}
-		search = strings.TrimSuffix(search, " OR ")
-		tx = tx.Where(search)
+	if search, args := buildSafeSearch(service.Searches, userSearchColumns); search != "" {
+		tx = tx.Where(search, args...)
 	}
 
 	// 计算总数用于分页

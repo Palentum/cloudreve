@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"strings"
-
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v3/pkg/task"
@@ -50,27 +48,34 @@ func (service *TaskBatchService) DeleteGeneral(c *gin.Context) serializer.Respon
 	return serializer.Response{}
 }
 
+// taskSearchColumns 任务表允许搜索/过滤/排序的列
+var taskSearchColumns = map[string]bool{
+	"id": true, "status": true, "type": true, "user_id": true,
+	"progress": true, "error": true,
+}
+
+// downloadSearchColumns 离线下载表允许搜索/过滤/排序的列
+var downloadSearchColumns = map[string]bool{
+	"id": true, "status": true, "type": true, "user_id": true, "node_id": true,
+	"gid": true, "source": true, "error": true, "parent": true, "total_size": true,
+}
+
 // Tasks 列出常规任务
 func (service *AdminListService) Tasks() serializer.Response {
 	var res []model.Task
 	total := 0
 
 	tx := model.DB.Model(&model.Task{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, taskSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, taskSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
-	if len(service.Searches) > 0 {
-		search := ""
-		for k, v := range service.Searches {
-			search += k + " like '%" + v + "%' OR "
-		}
-		search = strings.TrimSuffix(search, " OR ")
-		tx = tx.Where(search)
+	if search, args := buildSafeSearch(service.Searches, taskSearchColumns); search != "" {
+		tx = tx.Where(search, args...)
 	}
 
 	// 计算总数用于分页
@@ -110,21 +115,16 @@ func (service *AdminListService) Downloads() serializer.Response {
 	total := 0
 
 	tx := model.DB.Model(&model.Download{})
-	if service.OrderBy != "" {
-		tx = tx.Order(service.OrderBy)
+	if orderBy := sanitizeOrderBy(service.OrderBy, downloadSearchColumns); orderBy != "" {
+		tx = tx.Order(orderBy)
 	}
 
-	for k, v := range service.Conditions {
-		tx = tx.Where(k+" = ?", v)
+	if cond, args := buildSafeConditions(service.Conditions, downloadSearchColumns); cond != "" {
+		tx = tx.Where(cond, args...)
 	}
 
-	if len(service.Searches) > 0 {
-		search := ""
-		for k, v := range service.Searches {
-			search += k + " like '%" + v + "%' OR "
-		}
-		search = strings.TrimSuffix(search, " OR ")
-		tx = tx.Where(search)
+	if search, args := buildSafeSearch(service.Searches, downloadSearchColumns); search != "" {
+		tx = tx.Where(search, args...)
 	}
 
 	// 计算总数用于分页
