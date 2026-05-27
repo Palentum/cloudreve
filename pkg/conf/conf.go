@@ -18,6 +18,7 @@ type database struct {
 	Port        int
 	Charset     string
 	UnixSocket  bool
+	SSLMode     string
 }
 
 // system 系统通用配置

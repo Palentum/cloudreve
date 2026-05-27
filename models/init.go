@@ -43,12 +43,17 @@ func Init() {
 			// 未指定数据库或者明确指定为 sqlite 时，使用 SQLite 数据库
 			db, err = gorm.Open("sqlite", util.RelativePath(conf.DatabaseConfig.DBFile))
 		case "postgres":
-			db, err = gorm.Open(confDBType, fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
+			sslMode := conf.DatabaseConfig.SSLMode
+			if sslMode == "" {
+				sslMode = "disable"
+			}
+			db, err = gorm.Open(confDBType, fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=%s",
 				conf.DatabaseConfig.Host,
 				conf.DatabaseConfig.User,
 				conf.DatabaseConfig.Password,
 				conf.DatabaseConfig.Name,
-				conf.DatabaseConfig.Port))
+				conf.DatabaseConfig.Port,
+				sslMode))
 		case "mysql", "mssql":
 			var host string
 			if conf.DatabaseConfig.UnixSocket {
