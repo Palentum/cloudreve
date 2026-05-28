@@ -34,3 +34,4 @@ conf/conf.ini
 dist/
 .DS_Store
 AGENTS.md
+middleware/tests/
