@@ -10,10 +10,10 @@ type Webdav struct {
 	gorm.Model
 	Name     string // 应用名称
 	Password string `gorm:"unique_index:password_only_on" json:"-"` // 应用密码（bcrypt 哈希）
-	UserID   uint   `gorm:"unique_index:password_only_on"` // 用户ID
-	Root     string `gorm:"type:text"`                     // 根目录
-	Readonly bool   `gorm:"type:bool"`                     // 是否只读
-	UseProxy bool   `gorm:"type:bool"`                     // 是否进行反代
+	UserID   uint   `gorm:"unique_index:password_only_on"`          // 用户ID
+	Root     string `gorm:"type:text"`                              // 根目录
+	Readonly bool   `gorm:"type:bool"`                              // 是否只读
+	UseProxy bool   `gorm:"type:bool"`                              // 是否进行反代
 }
 
 // Create 创建账户
@@ -53,12 +53,9 @@ func (webdav *Webdav) CheckPassword(password string) bool {
 }
 
 // GetWebdavByAccount 根据密码和用户查找Webdav应用。
-// 限制最多检查 maxWebdavAccounts 个账户，防止大量账户时 bcrypt 比较耗时过长。
-const maxWebdavAccounts = 10
-
 func GetWebdavByAccount(password string, uid uint) (*Webdav, error) {
 	var accounts []Webdav
-	res := DB.Where("user_id = ?", uid).Limit(maxWebdavAccounts).Find(&accounts)
+	res := DB.Where("user_id = ?", uid).Find(&accounts)
 	if res.Error != nil {
 		return nil, res.Error
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
+	"regexp"
 	"testing"
 )
 
@@ -108,6 +109,25 @@ func TestGetWebdavByAccount(t *testing.T) {
 		_, err := GetWebdavByAccount("e", 1)
 		asserts.NoError(mock.ExpectationsWereMet())
 		asserts.Error(err)
+	}
+
+	// 超过 10 个账号时，后续账号也应可认证
+	{
+		hash, _ := HashWebdavPassword("latepass")
+		rows := sqlmock.NewRows([]string{"id", "password", "user_id"})
+		for i := 1; i <= 10; i++ {
+			rows.AddRow(i, "invalid-bcrypt-hash", 1)
+		}
+		rows.AddRow(11, hash, 1)
+
+		query := regexp.QuoteMeta("SELECT * FROM `webdavs` WHERE `webdavs`.`deleted_at` IS NULL AND ((user_id = ?))")
+		mock.ExpectQuery(query).WithArgs(1).WillReturnRows(rows)
+		webdav, err := GetWebdavByAccount("latepass", 1)
+		asserts.NoError(mock.ExpectationsWereMet())
+		asserts.NoError(err)
+		if asserts.NotNil(webdav) {
+			asserts.EqualValues(11, webdav.ID)
+		}
 	}
 }
 
