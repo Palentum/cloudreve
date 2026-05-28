@@ -3,12 +3,10 @@ package controllers
 import (
 	"github.com/cloudreve/Cloudreve/v3/pkg/cluster"
 	"github.com/cloudreve/Cloudreve/v3/pkg/mq"
-	"io"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/aria2"
 	"github.com/cloudreve/Cloudreve/v3/pkg/email"
-	"github.com/cloudreve/Cloudreve/v3/pkg/request"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v3/pkg/wopi"
 	"github.com/cloudreve/Cloudreve/v3/service/admin"
@@ -23,19 +21,6 @@ func AdminSummary(c *gin.Context) {
 		c.JSON(200, res)
 	} else {
 		c.JSON(200, ErrorResponse(err))
-	}
-}
-
-// AdminNews 获取社区新闻
-func AdminNews(c *gin.Context) {
-	tag := "announcements"
-	if c.Query("tag") != "" {
-		tag = c.Query("tag")
-	}
-	r := request.NewClient()
-	res := r.Request("GET", "https://forum.cloudreve.org/api/discussions?include=startUser%2ClastUser%2CstartPost%2Ctags&filter%5Bq%5D=%20tag%3A"+tag+"&sort=-startTime&page%5Blimit%5D=10", nil)
-	if res.Err == nil {
-		io.Copy(c.Writer, res.Response.Body)
 	}
 }
 

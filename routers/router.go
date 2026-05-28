@@ -430,8 +430,6 @@ func InitMasterRouter() *gin.Engine {
 			{
 				// 获取站点概况
 				admin.GET("summary", controllers.AdminSummary)
-				// 获取社区新闻
-				admin.GET("news", controllers.AdminNews)
 				// 更改设置
 				admin.PATCH("setting", controllers.AdminChangeSetting)
 				// 获取设置
