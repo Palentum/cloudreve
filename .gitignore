@@ -32,3 +32,4 @@ conf/conf.ini
 .vscode/
 
 dist/
+.DS_Store
