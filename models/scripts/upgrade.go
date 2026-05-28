@@ -41,16 +41,3 @@ func (script UpgradeTo340) Run(ctx context.Context) {
 		util.Log().Info("Aria2 配置信息已成功迁移至 3.4.0+ 版本的模式")
 	}
 }
-
-type ClearSharePasswords int
-
-// Run clears all plaintext share passwords so they can be re-set with bcrypt hashing.
-func (script ClearSharePasswords) Run(ctx context.Context) {
-	result := model.DB.Model(&model.Share{}).Where("password != ?", "").
-		Update("password", "")
-	if result.Error != nil {
-		util.Log().Error("清除分享密码失败: %s", result.Error)
-		return
-	}
-	util.Log().Info("已清除 %d 条分享的明文密码，用户需重新设置密码", result.RowsAffected)
-}

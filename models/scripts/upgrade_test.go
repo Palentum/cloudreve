@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 	"testing"
 )
 
@@ -69,20 +70,35 @@ func TestClearSharePasswords_Run(t *testing.T) {
 	a := assert.New(t)
 	script := ClearSharePasswords(0)
 
-	// success
+	mock.ExpectQuery("SELECT(.+)shares").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	script.Run(context.Background())
+	a.NoError(mock.ExpectationsWereMet())
+}
+
+func TestUpgradeSharePasswords_Run(t *testing.T) {
+	a := assert.New(t)
+	script := UpgradeSharePasswords(0)
+
+	// success: plaintext passwords are hashed, existing bcrypt hashes are skipped.
 	{
+		hash, err := bcrypt.GenerateFromPassword([]byte("already-hashed"), bcrypt.MinCost)
+		a.NoError(err)
+		rows := sqlmock.NewRows([]string{"id", "password"}).
+			AddRow(1, "plain-password").
+			AddRow(2, string(hash))
+
+		mock.ExpectQuery("SELECT(.+)shares").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+		mock.ExpectQuery("SELECT(.+)shares").WillReturnRows(rows)
 		mock.ExpectBegin()
-		mock.ExpectExec("UPDATE(.+)shares").WillReturnResult(sqlmock.NewResult(0, 5))
+		mock.ExpectExec("UPDATE(.+)shares").WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		script.Run(context.Background())
 		a.NoError(mock.ExpectationsWereMet())
 	}
 
-	// error
+	// count error
 	{
-		mock.ExpectBegin()
-		mock.ExpectExec("UPDATE(.+)shares").WillReturnError(errors.New("error"))
-		mock.ExpectRollback()
+		mock.ExpectQuery("SELECT(.+)shares").WillReturnError(errors.New("error"))
 		script.Run(context.Background())
 		a.NoError(mock.ExpectationsWereMet())
 	}

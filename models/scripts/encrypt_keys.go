@@ -13,6 +13,9 @@ type UpgradeTo390 int
 // Run 将 policies 和 nodes 表中的敏感字段从明文加密为 AES-GCM 密文。
 // 使用 cipher.IsEncrypted 检测，确保幂等性。
 func (script UpgradeTo390) Run(ctx context.Context) {
+	UpgradeSharePasswords(0).Run(ctx)
+	UpgradeWebdavPasswords(0).Run(ctx)
+
 	if !cipher.IsAvailable() {
 		util.Log().Warning("加密引擎未初始化，跳过密钥加密迁移")
 		return
