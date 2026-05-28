@@ -1,11 +1,13 @@
 package middleware
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
 	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -142,6 +144,31 @@ func TestBeforeShareDownload(t *testing.T) {
 		})
 		testFunc(c)
 		asserts.False(c.IsAborted())
+	}
+}
+
+func TestShareCaptchaRequired(t *testing.T) {
+	asserts := assert.New(t)
+	testFunc := ShareCaptchaRequired()
+	cache.Store = cache.NewMemoStore()
+
+	// 未携带 Cap token
+	{
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request, _ = http.NewRequest("PUT", "/share/download/test", nil)
+		testFunc(c)
+		asserts.True(c.IsAborted())
+	}
+
+	// Cap token 无效
+	{
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request, _ = http.NewRequest("POST", "/share/archive/test", nil)
+		c.Request.Header.Set("X-Cap-Token", "invalid")
+		testFunc(c)
+		asserts.True(c.IsAborted())
 	}
 }
 
