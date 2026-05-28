@@ -202,3 +202,44 @@ func TestCSRFProtectionCORSAllowed(t *testing.T) {
 		asserts.True(c.IsAborted())
 	}
 }
+
+func TestCSRFProtectionCORSWildcardDoesNotTrustAllOrigins(t *testing.T) {
+	asserts := assert.New(t)
+
+	origins := conf.CORSConfig.AllowOrigins
+	conf.CORSConfig.AllowOrigins = []string{"*"}
+	defer func() { conf.CORSConfig.AllowOrigins = origins }()
+
+	// CORS 的 * 不应让 CSRF 放行任意跨站 Origin
+	{
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request, _ = http.NewRequest("POST", "/test", nil)
+		c.Request.Host = "example.com"
+		c.Request.Header.Set("Origin", "https://evil.com")
+		CSRFProtection()(c)
+		asserts.True(c.IsAborted())
+	}
+
+	// CORS 的 * 不应让 CSRF 放行任意跨站 Referer
+	{
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request, _ = http.NewRequest("POST", "/test", nil)
+		c.Request.Host = "example.com"
+		c.Request.Header.Set("Referer", "https://evil.com/attack")
+		CSRFProtection()(c)
+		asserts.True(c.IsAborted())
+	}
+
+	// 同源请求仍然通过
+	{
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request, _ = http.NewRequest("POST", "/test", nil)
+		c.Request.Host = "example.com"
+		c.Request.Header.Set("Origin", "https://example.com")
+		CSRFProtection()(c)
+		asserts.False(c.IsAborted())
+	}
+}

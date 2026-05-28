@@ -71,13 +71,12 @@ func CSRFCheck() gin.HandlerFunc {
 // 仅校验非安全方法（POST/PUT/PATCH/DELETE），GET/HEAD/OPTIONS 直接放行。
 // 允许无 Origin 的请求（非浏览器客户端、部分隐私模式浏览器），依赖 SameSite cookie 兜底。
 func CSRFProtection() gin.HandlerFunc {
-	// 从 CORS 白名单 URL 中提取 host，用于后续比对
+	// 从 CORS 白名单 URL 中提取 host，用于后续比对。
+	// CORS 的 "*" 不代表 CSRF 可信来源，不能用于放行跨站写请求。
 	allowedHosts := make(map[string]bool)
-	allowAll := false
 	for _, o := range conf.CORSConfig.AllowOrigins {
 		if o == "*" {
-			allowAll = true
-			break
+			continue
 		}
 		u, err := url.Parse(o)
 		if err == nil && u.Host != "" {
@@ -119,17 +118,14 @@ func CSRFProtection() gin.HandlerFunc {
 			host = u.Host
 		}
 
-		if host == c.Request.Host {
+		host = strings.ToLower(host)
+		reqHost := strings.ToLower(c.Request.Host)
+		if host == reqHost {
 			c.Next()
 			return
 		}
 
-		if allowAll {
-			c.Next()
-			return
-		}
-
-		if allowedHosts[strings.ToLower(host)] {
+		if allowedHosts[host] {
 			c.Next()
 			return
 		}
