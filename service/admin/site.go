@@ -63,11 +63,25 @@ func (service *BatchSettingChangeService) Change() serializer.Response {
 	tx := model.DB.Begin()
 
 	for _, setting := range service.Options {
-
-		if err := tx.Model(&model.Setting{}).Where("name = ?", setting.Key).Update("value", setting.Value).Error; err != nil {
+		result := tx.Model(&model.Setting{}).Where("name = ?", setting.Key).Update("value", setting.Value)
+		if result.Error != nil {
 			cache.Deletes(cacheClean, "setting_")
 			tx.Rollback()
-			return serializer.Err(serializer.CodeUpdateSetting, "Setting "+setting.Key+" failed to update", err)
+			return serializer.Err(serializer.CodeUpdateSetting, "Setting "+setting.Key+" failed to update", result.Error)
+		}
+
+		if result.RowsAffected == 0 {
+			if defaultSetting, ok := model.DefaultSetting(setting.Key); ok {
+				defaultSetting.Value = setting.Value
+				err := tx.Where(model.Setting{Name: setting.Key}).
+					Assign(model.Setting{Value: setting.Value}).
+					FirstOrCreate(&defaultSetting).Error
+				if err != nil {
+					cache.Deletes(cacheClean, "setting_")
+					tx.Rollback()
+					return serializer.Err(serializer.CodeUpdateSetting, "Setting "+setting.Key+" failed to update", err)
+				}
+			}
 		}
 
 		cacheClean = append(cacheClean, setting.Key)

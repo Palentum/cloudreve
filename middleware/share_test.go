@@ -151,6 +151,16 @@ func TestShareCaptchaRequired(t *testing.T) {
 	asserts := assert.New(t)
 	testFunc := ShareCaptchaRequired()
 	cache.Store = cache.NewMemoStore()
+
+	// 开关关闭时不要求 Cap token
+	{
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request, _ = http.NewRequest("PUT", "/share/download/test", nil)
+		testFunc(c)
+		asserts.False(c.IsAborted())
+	}
+
 	cache.Set("setting_share_captcha_enabled", "1", -1)
 
 	// 未携带 Cap token

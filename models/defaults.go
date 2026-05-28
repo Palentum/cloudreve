@@ -137,6 +137,16 @@ Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; verti
 	{Name: "wopi_session_timeout", Value: "36000", Type: "wopi"},
 }
 
+// DefaultSetting 返回指定名称的默认设置。
+func DefaultSetting(name string) (Setting, bool) {
+	for _, setting := range defaultSettings {
+		if setting.Name == name {
+			return setting, true
+		}
+	}
+	return Setting{}, false
+}
+
 func InitSlaveDefaults() {
 	for _, setting := range defaultSettings {
 		cache.Set("setting_"+setting.Name, setting.Value, -1)
