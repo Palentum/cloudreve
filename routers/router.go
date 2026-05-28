@@ -172,13 +172,6 @@ func InitMasterRouter() *gin.Engine {
 			site.GET("config", middleware.CSRFInit(), controllers.SiteConfig)
 		}
 
-		// Cap 验证码
-		cap := v3.Group("cap")
-		{
-			cap.POST("challenge", middleware.CSRFProtection(), controllers.CreateCapChallenge)
-			cap.POST("redeem", middleware.CSRFProtection(), controllers.RedeemCapChallenge)
-		}
-
 		// 用户相关路由
 		user := v3.Group("user")
 		{
@@ -356,7 +349,6 @@ func InitMasterRouter() *gin.Engine {
 			share.PUT("download/:id",
 				middleware.CSRFProtection(),
 				middleware.CheckShareUnlocked(),
-				middleware.ShareCaptchaRequired(),
 				middleware.BeforeShareDownload(),
 				controllers.GetShareDownload,
 			)
@@ -395,7 +387,6 @@ func InitMasterRouter() *gin.Engine {
 			share.POST("archive/:id",
 				middleware.CSRFProtection(),
 				middleware.CheckShareUnlocked(),
-				middleware.ShareCaptchaRequired(),
 				middleware.BeforeShareDownload(),
 				controllers.ArchiveShare,
 			)

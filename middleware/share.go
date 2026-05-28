@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
-	capservice "github.com/cloudreve/Cloudreve/v3/pkg/cap"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
@@ -130,24 +129,5 @@ func BeforeShareDownload() gin.HandlerFunc {
 			}
 		}
 		c.Abort()
-	}
-}
-
-// ShareCaptchaRequired 检查分享下载前的 Cap 验证结果。
-func ShareCaptchaRequired() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if !model.IsTrueVal(model.GetSettingByName("share_captcha_enabled")) {
-			c.Next()
-			return
-		}
-
-		token := c.GetHeader(capservice.HeaderName)
-		if token == "" || !capservice.ValidateToken(token, true) {
-			c.JSON(200, serializer.Err(serializer.CodeCaptchaRefreshNeeded, captchaRefresh, nil))
-			c.Abort()
-			return
-		}
-
-		c.Next()
 	}
 }

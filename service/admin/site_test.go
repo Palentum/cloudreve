@@ -33,14 +33,14 @@ func TestBatchSettingChangeCreatesMissingDefaultSetting(t *testing.T) {
 	asserts := assert.New(t)
 
 	service := BatchSettingChangeService{Options: []SettingChangeService{{
-		Key:   "share_captcha_enabled",
+		Key:   "hot_share_num",
 		Value: "1",
 	}}}
 	res := service.Change()
 
 	asserts.Equal(0, res.Code)
 	var setting model.Setting
-	asserts.NoError(model.DB.Where("name = ?", "share_captcha_enabled").First(&setting).Error)
+	asserts.NoError(model.DB.Where("name = ?", "hot_share_num").First(&setting).Error)
 	asserts.Equal("share", setting.Type)
 	asserts.Equal("1", setting.Value)
 }

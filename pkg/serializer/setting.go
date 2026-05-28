@@ -23,7 +23,6 @@ type SiteConfig struct {
 	TCaptchaCaptchaAppId string   `json:"tcaptcha_captcha_app_id"`
 	RegisterEnabled      bool     `json:"registerEnabled"`
 	AppPromotion         bool     `json:"app_promotion"`
-	ShareCaptchaEnabled  bool     `json:"shareCaptchaEnabled"`
 	WopiExts             []string `json:"wopi_exts"`
 }
 
@@ -87,7 +86,6 @@ func BuildSiteConfig(settings map[string]string, user *model.User, wopiExts []st
 			TCaptchaCaptchaAppId: checkSettingValue(settings, "captcha_TCaptcha_CaptchaAppId"),
 			RegisterEnabled:      model.IsTrueVal(checkSettingValue(settings, "register_enabled")),
 			AppPromotion:         model.IsTrueVal(checkSettingValue(settings, "show_app_promotion")),
-			ShareCaptchaEnabled:  model.IsTrueVal(checkSettingValue(settings, "share_captcha_enabled")),
 			WopiExts:             wopiExts,
 		}}
 	return res
