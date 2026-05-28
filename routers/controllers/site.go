@@ -29,6 +29,7 @@ func SiteConfig(c *gin.Context) {
 		"captcha_TCaptcha_CaptchaAppId",
 		"register_enabled",
 		"show_app_promotion",
+		"share_captcha_enabled",
 	)
 
 	var wopiExts []string

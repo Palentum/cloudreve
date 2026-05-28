@@ -151,6 +151,7 @@ func TestShareCaptchaRequired(t *testing.T) {
 	asserts := assert.New(t)
 	testFunc := ShareCaptchaRequired()
 	cache.Store = cache.NewMemoStore()
+	cache.Set("setting_share_captcha_enabled", "1", -1)
 
 	// 未携带 Cap token
 	{
