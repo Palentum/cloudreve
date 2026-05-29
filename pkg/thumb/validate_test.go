@@ -41,17 +41,23 @@ func TestValidateExecutable_NoExecPermission(t *testing.T) {
 }
 
 func TestValidateExecutable_ValidAbsolute(t *testing.T) {
+	// 绝对路径现在应被拒绝 — 仅接受裸可执行文件名
 	dir := t.TempDir()
 	f := filepath.Join(dir, "mybin")
 	if err := os.WriteFile(f, []byte("#!/bin/sh\necho hi"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	resolved, err := ValidateExecutable(f)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := ValidateExecutable(f)
+	if err == nil {
+		t.Error("expected error for absolute path (bare names only)")
 	}
-	if resolved != f {
-		t.Errorf("expected %s, got %s", f, resolved)
+}
+
+func TestValidateExecutable_RelativePath(t *testing.T) {
+	// 相对路径（含分隔符）应被拒绝
+	_, err := ValidateExecutable("./something")
+	if err == nil {
+		t.Error("expected error for relative path")
 	}
 }
 
