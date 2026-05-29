@@ -243,15 +243,8 @@ func (user *User) AfterFind() (err error) {
 	// 预加载存储策略
 	user.Policy, _ = GetPolicyByID(user.GetPolicyID(0))
 
-	// 解密 TwoFactor 字段（仅当为密文时）
-	if cipher.IsEncrypted(user.TwoFactor) {
-		decrypted, cryptErr := cipher.Decrypt(user.TwoFactor)
-		if cryptErr != nil {
-			util.Log().Warning("AfterFind: TwoFactor 解密失败: %s", cryptErr)
-		} else {
-			user.TwoFactor = decrypted
-		}
-	}
+	// 解密 TwoFactor 字段
+	user.TwoFactor, _ = cipher.Decrypt(user.TwoFactor)
 
 	return err
 }
