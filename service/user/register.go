@@ -38,17 +38,18 @@ func (service *UserRegisterService) Register(c *gin.Context) serializer.Response
 		user.Status = model.NotActivicated
 	}
 	user.GroupID = uint(defaultGroup)
-	userNotActivated := false
 	// 创建用户
 	if err := model.DB.Create(&user).Error; err != nil {
 		//检查已存在使用者是否尚未激活
 		expectedUser, _ := model.GetUserByEmail(service.UserName)
 		if expectedUser.Status == model.NotActivicated {
-			userNotActivated = true
 			user = expectedUser
 		} else {
-			// 不暴露邮箱是否已注册，返回成功伪装注册完成
-			return serializer.Response{Code: 0}
+			// 邮箱已注册且已激活，返回与成功注册相同的响应，防止枚举
+			if isEmailRequired {
+				return serializer.Response{Code: 203}
+			}
+			return serializer.Response{}
 		}
 	}
 
@@ -82,12 +83,7 @@ func (service *UserRegisterService) Register(c *gin.Context) serializer.Response
 		if err := email.Send(user.Email, title, body); err != nil {
 			return serializer.Err(serializer.CodeFailedSendEmail, "Failed to send activation email", err)
 		}
-		if userNotActivated == true {
-			//原本在上面要抛出的DBErr，放来这边抛出
-			return serializer.Err(serializer.CodeEmailSent, "User is not activated, activation email has been resent", nil)
-		} else {
-			return serializer.Response{Code: 203}
-		}
+		return serializer.Response{Code: 203}
 	}
 
 	return serializer.Response{}
