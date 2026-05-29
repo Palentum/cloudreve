@@ -208,17 +208,18 @@ func NewUser() User {
 
 // BeforeSave Save用户前的钩子
 func (user *User) BeforeSave() (err error) {
-	err = user.SerializeOptions()
+	if err = user.SerializeOptions(); err != nil {
+		return err
+	}
 	// 加密 TwoFactor 字段（仅当非空且未加密时）
 	if user.TwoFactor != "" && !cipher.IsEncrypted(user.TwoFactor) {
 		encrypted, cryptErr := cipher.Encrypt(user.TwoFactor)
 		if cryptErr != nil {
-			util.Log().Warning("BeforeSave: TwoFactor 加密失败: %s", cryptErr)
-		} else {
-			user.TwoFactor = encrypted
+			return cryptErr
 		}
+		user.TwoFactor = encrypted
 	}
-	return err
+	return nil
 }
 
 // AfterCreate 创建用户后的钩子
