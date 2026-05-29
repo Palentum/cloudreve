@@ -25,8 +25,9 @@ type req struct {
 }
 
 const (
-	captchaNotMatch = "CAPTCHA not match."
-	captchaRefresh  = "Verification failed, please refresh the page and retry."
+	captchaNotMatch    = "CAPTCHA not match."
+	captchaRefresh     = "Verification failed, please refresh the page and retry."
+	captchaConfigError = "CAPTCHA service is not configured."
 )
 
 // CaptchaRequired 验证请求签名
@@ -77,8 +78,9 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 				reCAPTCHA, err := recaptcha.NewReCAPTCHA(options["captcha_ReCaptchaSecret"], recaptcha.V2, 10*time.Second)
 				if err != nil {
 					util.Log().Warning("reCAPTCHA verification failed, %s", err)
+					respondWithError(c, serializer.Err(serializer.CodeCaptchaError, captchaConfigError, err))
 					c.Abort()
-					break
+					return
 				}
 
 				err = reCAPTCHA.Verify(service.CaptchaCode)
@@ -109,8 +111,9 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 				response, err := client.DescribeCaptchaResult(request)
 				if err != nil {
 					util.Log().Warning("TCaptcha verification failed, %s", err)
+					respondWithError(c, serializer.Err(serializer.CodeCaptchaError, captchaConfigError, err))
 					c.Abort()
-					break
+					return
 				}
 
 				if *response.Response.CaptchaCode != int64(1) {
