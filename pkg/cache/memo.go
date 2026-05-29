@@ -1,13 +1,22 @@
 package cache
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
+)
+
+const (
+	hmacSize = sha256.Size
 )
 
 // MemoStore 内存存储驱动
@@ -50,7 +59,6 @@ func getValue(item interface{}, ok bool) (interface{}, bool) {
 	}
 
 	return itemObj.Value, ok
-
 }
 
 // GarbageCollect 回收已过期的缓存
@@ -58,7 +66,6 @@ func (store *MemoStore) GarbageCollect() {
 	store.Store.Range(func(key, value interface{}) bool {
 		if item, ok := value.(itemWithTTL); ok {
 			if item.Expires > 0 && item.Expires < time.Now().Unix() {
-				util.Log().Debug("Cache %q is garbage collected.", key.(string))
 				store.Store.Delete(key)
 			}
 		}
@@ -86,24 +93,23 @@ func (store *MemoStore) Get(key string) (interface{}, bool) {
 
 // Gets 批量取值
 func (store *MemoStore) Gets(keys []string, prefix string) (map[string]interface{}, []string) {
-	var res = make(map[string]interface{})
-	var notFound = make([]string, 0, len(keys))
-
+	res := make(map[string]interface{})
+	var missed []string
 	for _, key := range keys {
-		if value, ok := getValue(store.Store.Load(prefix + key)); ok {
-			res[key] = value
+		fullKey := prefix + key
+		if val, ok := store.Get(fullKey); ok {
+			res[key] = val
 		} else {
-			notFound = append(notFound, key)
+			missed = append(missed, key)
 		}
 	}
-
-	return res, notFound
+	return res, missed
 }
 
 // Sets 批量设置值
 func (store *MemoStore) Sets(values map[string]interface{}, prefix string) error {
-	for key, value := range values {
-		store.Store.Store(prefix+key, newItem(value, 0))
+	for k, v := range values {
+		store.Set(prefix+k, v, 0)
 	}
 	return nil
 }
@@ -114,6 +120,11 @@ func (store *MemoStore) Delete(keys []string, prefix string) error {
 		store.Store.Delete(prefix + key)
 	}
 	return nil
+}
+
+// cacheHMACKey 返回用于缓存完整性校验的 HMAC 密钥
+func cacheHMACKey() []byte {
+	return []byte(conf.SystemConfig.HashIDSalt)
 }
 
 // Persist write memory store into cache
@@ -133,8 +144,26 @@ func (store *MemoStore) Persist(path string) error {
 		return fmt.Errorf("failed to serialize cache: %s", err)
 	}
 
-	err = os.WriteFile(path, res, 0600)
-	return err
+	// 附加 HMAC-SHA256 完整性校验
+	mac := hmac.New(sha256.New, cacheHMACKey())
+	mac.Write(res)
+	expectedMAC := mac.Sum(nil)
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to create cache file: %s", err)
+	}
+	defer f.Close()
+
+	// 写入 HMAC + 数据
+	if _, err := f.Write(expectedMAC); err != nil {
+		return fmt.Errorf("failed to write cache HMAC: %s", err)
+	}
+	if _, err := f.Write(res); err != nil {
+		return fmt.Errorf("failed to write cache data: %s", err)
+	}
+
+	return nil
 }
 
 // Restore memory cache from disk file
@@ -153,8 +182,27 @@ func (store *MemoStore) Restore(path string) error {
 		os.Remove(path)
 	}()
 
+	// 读取 HMAC
+	expectedMAC := make([]byte, hmacSize)
+	if _, err := io.ReadFull(f, expectedMAC); err != nil {
+		return fmt.Errorf("failed to read cache HMAC: %s", err)
+	}
+
+	// 读取数据
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("failed to read cache data: %s", err)
+	}
+
+	// 验证 HMAC
+	mac := hmac.New(sha256.New, cacheHMACKey())
+	mac.Write(data)
+	if !hmac.Equal(mac.Sum(nil), expectedMAC) {
+		return fmt.Errorf("cache file integrity check failed")
+	}
+
 	persisted := &item{}
-	dec := gob.NewDecoder(f)
+	dec := gob.NewDecoder(bytes.NewReader(data))
 	if err := dec.Decode(&persisted); err != nil {
 		return fmt.Errorf("unknown cache file format: %s", err)
 	}
