@@ -8,7 +8,7 @@ services:
       # Redis 密码：生产环境不应使用无密码模式。
       # 请在 cloudreve/conf.ini 的 [Redis] 段配置相同密码。
       - ALLOW_EMPTY_PASSWORD=no
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-change-me-in-production}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD must be set. Generate with: openssl rand -base64 32}
     volumes:
       - redis_data:/bitnami/redis/data
 

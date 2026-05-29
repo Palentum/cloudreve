@@ -14,9 +14,19 @@ func init() {
 // Store 缓存存储器
 var Store Driver = NewMemoStore()
 
+// weakPasswords 已知弱密码列表，用于启动时检测并警告。
+var weakPasswords = []string{"", "change-me-in-production", "admin", "password", "redis", "changeme"}
+
 // Init 初始化缓存
 func Init() {
 	if conf.RedisConfig.Server != "" && gin.Mode() != gin.TestMode {
+		// 检测弱密码：密码为空或使用已知弱值则打印警告
+		for _, wp := range weakPasswords {
+			if conf.RedisConfig.Password == wp {
+				util.Log().Warning("Redis 密码不安全（值为 %q），请修改为强随机密码。", wp)
+				break
+			}
+		}
 		Store = NewRedisStore(
 			10,
 			conf.RedisConfig.Network,
@@ -27,7 +37,6 @@ func Init() {
 		)
 	}
 }
-
 // Restore restores cache from given disk file
 func Restore(persistFile string) {
 	if err := Store.Restore(persistFile); err != nil {
