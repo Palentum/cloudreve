@@ -1,9 +1,10 @@
 package auth
 
-import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
+ import (
+	"io"
+ 	"bytes"
+ 	"fmt"
+ 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
@@ -73,7 +74,7 @@ func getSignContent(r *http.Request) (rawSignString string) {
 	var body = []byte{}
 	if !strings.Contains(r.URL.Path, "/api/v3/slave/upload/") {
 		if r.Body != nil {
-			body, _ = ioutil.ReadAll(r.Body)
+			body, _ = ioutil.ReadAll(io.LimitReader(r.Body, 10<<20)) // 限制 10MB 防止 DoS
 			_ = r.Body.Close()
 			r.Body = ioutil.NopCloser(bytes.NewReader(body))
 		}
