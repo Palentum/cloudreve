@@ -1,12 +1,17 @@
 package routers
 
 import (
-	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
+	"github.com/cloudreve/Cloudreve/v3/pkg/hashid"
+	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 )
@@ -248,4 +253,53 @@ func TestSiteConfigRoute(t *testing.T) {
 			ID: 2,
 		},
 	}).UpdateColumn("name", "siteName")
+}
+
+func TestShareMetadataRouteRequiresUnlockedShare(t *testing.T) {
+	switchToMemDB()
+	asserts := assert.New(t)
+	router := InitMasterRouter()
+	suffix := time.Now().UnixNano()
+
+	user := model.User{
+		Email:  fmt.Sprintf("metadata-route-%d@example.com", suffix),
+		Status: model.Active,
+	}
+	asserts.NoError(model.DB.Create(&user).Error)
+
+	folder := model.Folder{
+		Name:    fmt.Sprintf("metadata-route-%d", suffix),
+		OwnerID: user.ID,
+	}
+	asserts.NoError(model.DB.Create(&folder).Error)
+
+	file := model.File{
+		Name:       fmt.Sprintf("metadata-route-%d.txt", suffix),
+		SourceName: fmt.Sprintf("objects/metadata-route-%d.txt", suffix),
+		UserID:     user.ID,
+		FolderID:   folder.ID,
+		PolicyID:   1,
+	}
+	asserts.NoError(model.DB.Create(&file).Error)
+
+	share := model.Share{
+		UserID:          user.ID,
+		SourceID:        file.ID,
+		RemainDownloads: -1,
+	}
+	asserts.NoError(share.SetPassword("secret"))
+	asserts.NoError(model.DB.Create(&share).Error)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(
+		"GET",
+		fmt.Sprintf("/api/v3/share/metadata/%s", hashid.HashID(share.ID, hashid.ShareID)),
+		nil,
+	)
+	router.ServeHTTP(w, req)
+
+	var res serializer.Response
+	asserts.NoError(json.Unmarshal(w.Body.Bytes(), &res))
+	asserts.Equal(200, w.Code)
+	asserts.Equal(serializer.CodeNoPermissionErr, res.Code)
 }

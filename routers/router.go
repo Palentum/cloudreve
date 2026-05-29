@@ -345,6 +345,11 @@ func InitMasterRouter() *gin.Engine {
 		{
 			// 获取分享
 			share.GET("info/:id", controllers.GetShare)
+			// 获取分享文件B2元数据
+			share.GET("metadata/:id",
+				middleware.CheckShareUnlocked(),
+				controllers.GetShareMetadata,
+			)
 			// 创建文件下载会话
 			share.PUT("download/:id",
 				middleware.CSRFProtection(),

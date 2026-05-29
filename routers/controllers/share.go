@@ -34,6 +34,13 @@ func GetShare(c *gin.Context) {
 	}
 }
 
+// GetShareMetadata 获取分享文件B2元数据
+func GetShareMetadata(c *gin.Context) {
+	var service share.Service
+	res := service.Metadata(c)
+	c.JSON(200, res)
+}
+
 // ListShare 列出分享
 func ListShare(c *gin.Context) {
 	var service share.ShareListService
