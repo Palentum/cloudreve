@@ -130,12 +130,12 @@ type memLS struct {
 	// Duration and are yet to expire.
 	byExpiry byExpiry
 }
-func (m *memLS) nextToken() string {
+func (m *memLS) nextToken() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		panic("webdav: failed to generate random token: " + err.Error())
+		return "", err
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 func (m *memLS) collectExpiredNodes(now time.Time) {
 	for len(m.byExpiry) > 0 {
@@ -240,8 +240,12 @@ func (m *memLS) Create(now time.Time, details LockDetails) (string, error) {
 	if !m.canCreate(details.Root, details.ZeroDepth) {
 		return "", ErrLocked
 	}
+	token, err := m.nextToken()
+	if err != nil {
+		return "", err
+	}
 	n := m.create(details.Root)
-	n.token = m.nextToken()
+	n.token = token
 	m.byToken[n.token] = n
 	n.details = details
 	if n.details.Duration >= 0 {
