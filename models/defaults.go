@@ -22,7 +22,7 @@ var defaultSettings = []Setting{
 	{Name: "fromAdress", Value: `no-reply@acg.blue`, Type: "mail"},
 	{Name: "smtpHost", Value: `smtp.mxhichina.com`, Type: "mail"},
 	{Name: "smtpPort", Value: `587`, Type: "mail"},
-	{Name: "replyTo", Value: `abslant@126.com`, Type: "mail"},
+	{Name: "replyTo", Value: ``, Type: "mail"},
 	{Name: "smtpUser", Value: `no-reply@acg.blue`, Type: "mail"},
 	{Name: "smtpPass", Value: ``, Type: "mail"},
 	{Name: "smtpEncryption", Value: `1`, Type: "mail"},
