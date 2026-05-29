@@ -13,22 +13,46 @@ func TestValidateExecutable_EmptyPath(t *testing.T) {
 	}
 }
 
+func TestValidateExecutable_NullByte(t *testing.T) {
+	_, err := ValidateExecutable("vips\x00hidden")
+	if err == nil {
+		t.Error("expected error for path containing null byte")
+	}
+}
+
 func TestValidateExecutable_NonexistentFile(t *testing.T) {
 	_, err := ValidateExecutable("/nonexistent/binary/that/does/not/exist")
 	if err == nil {
 		t.Error("expected error for nonexistent file")
 	}
 }
-
-func TestValidateExecutable_Directory(t *testing.T) {
+// 绝对路径应被接受并直接验证
+func TestValidateExecutable_ValidAbsolute(t *testing.T) {
 	dir := t.TempDir()
-	_, err := ValidateExecutable(dir)
-	if err == nil {
-		t.Error("expected error for directory")
+	f := filepath.Join(dir, "mybin")
+	if err := os.WriteFile(f, []byte("#!/bin/sh\necho hi"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := ValidateExecutable(f)
+	if err != nil {
+		t.Fatalf("unexpected error for valid absolute path: %v", err)
+	}
+	if resolved != f {
+		t.Errorf("expected %s, got %s", f, resolved)
 	}
 }
 
-func TestValidateExecutable_NoExecPermission(t *testing.T) {
+func TestValidateExecutable_AbsoluteNotRegular(t *testing.T) {
+	// 绝对路径指向目录 → 应失败
+	dir := t.TempDir()
+	_, err := ValidateExecutable(dir)
+	if err == nil {
+		t.Error("expected error for absolute path pointing to directory")
+	}
+}
+
+func TestValidateExecutable_AbsoluteNoExec(t *testing.T) {
+	// 绝对路径指向无执行权限的文件 → 应失败
 	dir := t.TempDir()
 	f := filepath.Join(dir, "noexec")
 	if err := os.WriteFile(f, []byte("#!/bin/sh\necho hi"), 0644); err != nil {
@@ -36,20 +60,7 @@ func TestValidateExecutable_NoExecPermission(t *testing.T) {
 	}
 	_, err := ValidateExecutable(f)
 	if err == nil {
-		t.Error("expected error for non-executable file")
-	}
-}
-
-func TestValidateExecutable_ValidAbsolute(t *testing.T) {
-	// 绝对路径现在应被拒绝 — 仅接受裸可执行文件名
-	dir := t.TempDir()
-	f := filepath.Join(dir, "mybin")
-	if err := os.WriteFile(f, []byte("#!/bin/sh\necho hi"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	_, err := ValidateExecutable(f)
-	if err == nil {
-		t.Error("expected error for absolute path (bare names only)")
+		t.Error("expected error for absolute path without exec permission")
 	}
 }
 

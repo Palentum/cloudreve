@@ -8,20 +8,15 @@ import (
 	"strings"
 )
 
-// ValidateExecutable 验证给定的名称指向 PATH 中的一个真实、可执行的普通文件。
-// 仅接受裸可执行文件名（不含路径分隔符），拒绝绝对路径和相对路径，
-// 以降低管理员配置可执行路径时的权限提升风险。
+// ValidateExecutable 验证并解析可执行文件路径。
+// 接受绝对路径（直接验证文件）或裸可执行文件名（通过 PATH 解析）。
+// 拒绝相对路径，以降低管理员配置可执行路径时的权限提升风险。
 func ValidateExecutable(executable string) (string, error) {
 	cleaned := filepath.Clean(executable)
 
 	// 拒绝空路径
 	if len(cleaned) == 0 {
 		return "", fmt.Errorf("executable path is empty")
-	}
-
-	// 拒绝含路径分隔符或绝对路径，仅允许裸可执行文件名
-	if strings.Contains(cleaned, string(filepath.Separator)) || filepath.IsAbs(cleaned) {
-		return "", fmt.Errorf("executable must be a bare name, not a path")
 	}
 
 	// 拒绝含 null 字节
@@ -31,13 +26,23 @@ func ValidateExecutable(executable string) (string, error) {
 		}
 	}
 
-	// 通过 PATH 解析
+	if filepath.IsAbs(cleaned) {
+		// 绝对路径：直接验证文件属性
+		return validateFileExecutable(cleaned, cleaned)
+	}
+
+	if strings.Contains(cleaned, string(filepath.Separator)) {
+		// 相对路径（含分隔符）：拒绝
+		return "", fmt.Errorf("executable must be a bare name or absolute path, not a relative path")
+	}
+
+	// 裸可执行文件名：通过 PATH 解析
 	resolved, err := exec.LookPath(cleaned)
 	if err != nil {
 		return "", fmt.Errorf("executable not found in PATH: %w", err)
 	}
 
-	// 确保为绝对路径
+	// 确保为绝对路径（PATH 可能含相对目录）
 	if !filepath.IsAbs(resolved) {
 		abs, err := filepath.Abs(resolved)
 		if err != nil {
@@ -46,19 +51,23 @@ func ValidateExecutable(executable string) (string, error) {
 		resolved = abs
 	}
 
-	// 验证文件属性
-	info, err := os.Stat(resolved)
+	return validateFileExecutable(resolved, cleaned)
+}
+
+// validateFileExecutable 验证文件存在、为普通文件且具有执行权限。
+func validateFileExecutable(path, display string) (string, error) {
+	info, err := os.Stat(path)
 	if err != nil {
 		return "", fmt.Errorf("executable not found: %w", err)
 	}
 
 	if !info.Mode().IsRegular() {
-		return "", fmt.Errorf("executable is not a regular file: %s", cleaned)
+		return "", fmt.Errorf("executable is not a regular file: %s", display)
 	}
 
 	if info.Mode().Perm()&0111 == 0 {
-		return "", fmt.Errorf("executable has no execute permission: %s", cleaned)
+		return "", fmt.Errorf("executable has no execute permission: %s", display)
 	}
 
-	return resolved, nil
+	return path, nil
 }
