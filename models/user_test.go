@@ -9,6 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/cipher"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -524,4 +525,92 @@ func TestUser_UpdateOptions(t *testing.T) {
 
 	asserts.NoError(user.UpdateOptions())
 	asserts.NoError(mock.ExpectationsWereMet())
+}
+
+func TestUser_TwoFactorEncryptOnSave(t *testing.T) {
+	asserts := assert.New(t)
+	cipher.Init("test-secret-key-for-twofactor-unit-testing")
+
+	user := NewUser()
+	user.TwoFactor = "JBSWY3DPEHPK3PXP"
+
+	err := user.BeforeSave()
+	asserts.NoError(err)
+	// 加密后应与明文不同
+	asserts.NotEqual("JBSWY3DPEHPK3PXP", user.TwoFactor)
+	// 应被识别为已加密
+	asserts.True(cipher.IsEncrypted(user.TwoFactor))
+}
+
+func TestUser_TwoFactorDecryptOnFind(t *testing.T) {
+	asserts := assert.New(t)
+	cipher.Init("test-secret-key-for-twofactor-unit-testing")
+	cache.Deletes([]string{"0"}, "policy_")
+
+	policyRows := sqlmock.NewRows([]string{"id", "name"}).
+		AddRow(144, "默认存储策略")
+	mock.ExpectQuery("^SELECT (.+)").WillReturnRows(policyRows)
+
+	// 先加密模拟数据库中的密文状态
+	user := NewUser()
+	user.TwoFactor = "JBSWY3DPEHPK3PXP"
+	_ = user.BeforeSave()
+
+	// AfterFind 应解密
+	err := user.AfterFind()
+	asserts.NoError(err)
+	asserts.NoError(mock.ExpectationsWereMet())
+	asserts.Equal("JBSWY3DPEHPK3PXP", user.TwoFactor)
+	asserts.False(cipher.IsEncrypted(user.TwoFactor))
+}
+
+func TestUser_TwoFactorEmptyNotEncrypted(t *testing.T) {
+	asserts := assert.New(t)
+	cipher.Init("test-secret-key-for-twofactor-unit-testing")
+
+	user := NewUser()
+	// 空字符串不应被加密
+	user.TwoFactor = ""
+
+	err := user.BeforeSave()
+	asserts.NoError(err)
+	asserts.Equal("", user.TwoFactor)
+}
+
+func TestUser_TwoFactorEncryptIdempotent(t *testing.T) {
+	asserts := assert.New(t)
+	cipher.Init("test-secret-key-for-twofactor-unit-testing")
+
+	user := NewUser()
+	user.TwoFactor = "JBSWY3DPEHPK3PXP"
+
+	// 第一次保存加密
+	err := user.BeforeSave()
+	asserts.NoError(err)
+	firstEncrypted := user.TwoFactor
+	asserts.True(cipher.IsEncrypted(firstEncrypted))
+
+	// 第二次保存不应重复加密
+	err = user.BeforeSave()
+	asserts.NoError(err)
+	asserts.Equal(firstEncrypted, user.TwoFactor)
+}
+
+func TestUser_TwoFactorDecryptPlaintextPassthrough(t *testing.T) {
+	asserts := assert.New(t)
+	cipher.Init("test-secret-key-for-twofactor-unit-testing")
+	cache.Deletes([]string{"0"}, "policy_")
+
+	policyRows := sqlmock.NewRows([]string{"id", "name"}).
+		AddRow(144, "默认存储策略")
+	mock.ExpectQuery("^SELECT (.+)").WillReturnRows(policyRows)
+
+	user := NewUser()
+	user.TwoFactor = "plaintext-not-encrypted"
+
+	err := user.AfterFind()
+	asserts.NoError(err)
+	asserts.NoError(mock.ExpectationsWereMet())
+	// 明文应保持原样
+	asserts.Equal("plaintext-not-encrypted", user.TwoFactor)
 }

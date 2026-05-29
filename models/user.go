@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/cloudreve/Cloudreve/v3/pkg/cipher"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
-
 const (
 	// Active 账户正常状态
 	Active = iota
@@ -196,6 +196,15 @@ func NewUser() User {
 // BeforeSave Save用户前的钩子
 func (user *User) BeforeSave() (err error) {
 	err = user.SerializeOptions()
+	// 加密 TwoFactor 字段（仅当非空且未加密时）
+	if user.TwoFactor != "" && !cipher.IsEncrypted(user.TwoFactor) {
+		encrypted, cryptErr := cipher.Encrypt(user.TwoFactor)
+		if cryptErr != nil {
+			util.Log().Warning("BeforeSave: TwoFactor 加密失败: %s", cryptErr)
+		} else {
+			user.TwoFactor = encrypted
+		}
+	}
 	return err
 }
 
@@ -219,6 +228,17 @@ func (user *User) AfterFind() (err error) {
 
 	// 预加载存储策略
 	user.Policy, _ = GetPolicyByID(user.GetPolicyID(0))
+
+	// 解密 TwoFactor 字段（仅当为密文时）
+	if cipher.IsEncrypted(user.TwoFactor) {
+		decrypted, cryptErr := cipher.Decrypt(user.TwoFactor)
+		if cryptErr != nil {
+			util.Log().Warning("AfterFind: TwoFactor 解密失败: %s", cryptErr)
+		} else {
+			user.TwoFactor = decrypted
+		}
+	}
+
 	return err
 }
 
