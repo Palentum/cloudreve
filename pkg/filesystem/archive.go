@@ -301,8 +301,7 @@ func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string)
 				wg.Done()
 			}
 			if err := recover(); err != nil {
-				util.Log().Warning("Error while uploading files inside of archive file.")
-				fmt.Println(err)
+				util.Log().Warning("Panic recovered during archive file upload: %s", err)
 			}
 		}()
 
