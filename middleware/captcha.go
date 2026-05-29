@@ -48,7 +48,7 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 			bodyCopy := new(bytes.Buffer)
 			_, err := io.Copy(bodyCopy, c.Request.Body)
 			if err != nil {
-				c.JSON(200, serializer.Err(serializer.CodeCaptchaError, captchaNotMatch, err))
+				respondWithError(c, serializer.Err(serializer.CodeCaptchaError, captchaNotMatch, err))
 				c.Abort()
 				return
 			}
@@ -56,7 +56,7 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 			bodyData := bodyCopy.Bytes()
 			err = json.Unmarshal(bodyData, &service)
 			if err != nil {
-				c.JSON(200, serializer.Err(serializer.CodeCaptchaError, captchaNotMatch, err))
+				respondWithError(c, serializer.Err(serializer.CodeCaptchaError, captchaNotMatch, err))
 				c.Abort()
 				return
 			}
@@ -67,7 +67,7 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 				captchaID := util.GetSession(c, "captchaID")
 				util.DeleteSession(c, "captchaID")
 				if captchaID == nil || !base64Captcha.VerifyCaptcha(captchaID.(string), service.CaptchaCode) {
-					c.JSON(200, serializer.Err(serializer.CodeCaptchaError, captchaNotMatch, err))
+					respondWithError(c, serializer.Err(serializer.CodeCaptchaError, captchaNotMatch, err))
 					c.Abort()
 					return
 				}
@@ -84,7 +84,7 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 				err = reCAPTCHA.Verify(service.CaptchaCode)
 				if err != nil {
 					util.Log().Warning("reCAPTCHA verification failed, %s", err)
-					c.JSON(200, serializer.Err(serializer.CodeCaptchaRefreshNeeded, captchaRefresh, nil))
+					respondWithError(c, serializer.Err(serializer.CodeCaptchaRefreshNeeded, captchaRefresh, nil))
 					c.Abort()
 					return
 				}
@@ -114,7 +114,7 @@ func CaptchaRequired(configName string) gin.HandlerFunc {
 				}
 
 				if *response.Response.CaptchaCode != int64(1) {
-					c.JSON(200, serializer.Err(serializer.CodeCaptchaRefreshNeeded, captchaRefresh, nil))
+					respondWithError(c, serializer.Err(serializer.CodeCaptchaRefreshNeeded, captchaRefresh, nil))
 					c.Abort()
 					return
 				}

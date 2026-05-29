@@ -39,7 +39,7 @@ func SignRequired(authInstance auth.Auth) gin.HandlerFunc {
 
 		if err != nil {
 			util.Log().Warning("Failed to verify request signature: %s", err)
-			c.JSON(200, serializer.Err(serializer.CodeCredentialInvalid, "Invalid signature", err))
+			respondWithError(c, serializer.Err(serializer.CodeCredentialInvalid, "Invalid signature", err))
 			c.Abort()
 			return
 		}
@@ -339,18 +339,18 @@ func S3CallbackAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRaw, _ := c.Get("user")
 		if userRaw == nil {
-			c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
+			respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
 			c.Abort()
 			return
 		}
 		user, ok := userRaw.(*model.User)
 		if !ok {
-			c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
+			respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
 			c.Abort()
 			return
 		}
 		if user.Group.ID != 1 && user.ID != 1 {
-			c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
+			respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
 			c.Abort()
 			return
 		}

@@ -62,7 +62,7 @@ func CSRFCheck() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
+		respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
 		c.Abort()
 	}
 }
@@ -103,7 +103,7 @@ func CSRFProtection() gin.HandlerFunc {
 		if origin != "" {
 			u, err := url.Parse(origin)
 			if err != nil {
-				c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
+				respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
 				c.Abort()
 				return
 			}
@@ -111,7 +111,7 @@ func CSRFProtection() gin.HandlerFunc {
 		} else {
 			u, err := url.Parse(referer)
 			if err != nil {
-				c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
+				respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "Invalid origin", nil))
 				c.Abort()
 				return
 			}
@@ -132,7 +132,7 @@ func CSRFProtection() gin.HandlerFunc {
 
 		util.Log().Warning("CSRF: rejected cross-origin %s %s (host=%s, reqHost=%s)",
 			method, c.Request.URL.Path, host, c.Request.Host)
-		c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "Cross-origin request rejected", nil))
+		respondWithError(c, serializer.Err(serializer.CodeNoPermissionErr, "Cross-origin request rejected", nil))
 		c.Abort()
 	}
 }

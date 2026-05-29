@@ -103,3 +103,35 @@ func TestStaticResourceCache(t *testing.T) {
 	TestFunc(c)
 	a.Contains(c.Writer.Header().Get("Cache-Control"), "public, max-age")
 }
+
+func TestHTTPStatusForCode(t *testing.T) {
+	asserts := assert.New(t)
+
+	// 三位错误码直接复用 HTTP 语义
+	asserts.Equal(401, httpStatusForCode(401))
+	asserts.Equal(403, httpStatusForCode(403))
+	asserts.Equal(404, httpStatusForCode(404))
+	asserts.Equal(409, httpStatusForCode(409))
+
+	// 成功码 200
+	asserts.Equal(200, httpStatusForCode(200))
+
+	// 4xxxx 统一映射为 400
+	asserts.Equal(400, httpStatusForCode(40001))
+	asserts.Equal(400, httpStatusForCode(40044))
+	asserts.Equal(400, httpStatusForCode(40020))
+
+	// 5xxxx 统一映射为 500
+	asserts.Equal(500, httpStatusForCode(50001))
+	asserts.Equal(500, httpStatusForCode(50002))
+
+	// CodeNotSet (-1) 映射为 500
+	asserts.Equal(500, httpStatusForCode(-1))
+
+	// 其他未知码映射为 500
+	// 成功码 0 映射为 200
+	asserts.Equal(200, httpStatusForCode(0))
+
+	// 其他未知码映射为 500
+	asserts.Equal(500, httpStatusForCode(199))
+}

@@ -10,6 +10,28 @@ import (
 	"net/http"
 )
 
+// httpStatusForCode 将 serializer 错误码映射为合适的 HTTP 状态码，
+// 使 WAF、监控和 API 网关能通过状态码识别错误响应。
+// 三位数错误码直接复用 HTTP 语义；5 位数 4xxxx → 400，5xxxx → 500。
+func httpStatusForCode(code int) int {
+	if code == 0 {
+		return http.StatusOK
+	}
+	if code >= 200 && code < 600 {
+		return code
+	}
+	if code >= 40000 && code < 50000 {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
+}
+
+// respondWithError 向客户端写入错误响应，并使用与错误码匹配的 HTTP 状态码。
+func respondWithError(c *gin.Context, res serializer.Response) {
+	c.JSON(httpStatusForCode(res.Code), res)
+}
+
+
 // HashID 将给定对象的HashID转换为真实ID
 func HashID(IDType int) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -20,7 +42,7 @@ func HashID(IDType int) gin.HandlerFunc {
 				c.Next()
 				return
 			}
-			c.JSON(200, serializer.ParamErr("Failed to parse object ID", nil))
+			respondWithError(c, serializer.ParamErr("Failed to parse object ID", nil))
 			c.Abort()
 			return
 
@@ -33,7 +55,7 @@ func HashID(IDType int) gin.HandlerFunc {
 func IsFunctionEnabled(key string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !model.IsTrueVal(model.GetSettingByName(key)) {
-			c.JSON(200, serializer.Err(serializer.CodeFeatureNotEnabled, "This feature is not enabled", nil))
+			respondWithError(c, serializer.Err(serializer.CodeFeatureNotEnabled, "This feature is not enabled", nil))
 			c.Abort()
 			return
 		}
