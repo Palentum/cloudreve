@@ -127,18 +127,22 @@ func (service *Enable2FA) Login(c *gin.Context) serializer.Response {
 // Login 用户登录函数
 func (service *UserLoginService) Login(c *gin.Context) serializer.Response {
 	expectedUser, err := model.GetUserByEmail(service.UserName)
-	// 一系列校验
 	if err != nil {
+		// 用户不存在
 		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", err)
 	}
-	if authOK, _ := expectedUser.CheckPassword(service.Password); !authOK {
+
+	// 检查账户状态（在密码验证之前，防止通过错误码枚举用户）
+	if expectedUser.Status == model.Baned || expectedUser.Status == model.OveruseBaned {
 		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", nil)
 	}
-	if expectedUser.Status == model.Baned || expectedUser.Status == model.OveruseBaned {
-		return serializer.Err(serializer.CodeUserBaned, "This account has been blocked", nil)
-	}
 	if expectedUser.Status == model.NotActivicated {
-		return serializer.Err(serializer.CodeUserNotActivated, "This account is not activated", nil)
+		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", nil)
+	}
+
+	// 验证密码
+	if authOK, _ := expectedUser.CheckPassword(service.Password); !authOK {
+		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", nil)
 	}
 
 	if expectedUser.TwoFactor != "" {
@@ -157,7 +161,6 @@ func (service *UserLoginService) Login(c *gin.Context) serializer.Response {
 	return serializer.BuildUserResponse(expectedUser)
 
 }
-
 // CopySessionService service for copy user session
 type CopySessionService struct {
 	ID string `uri:"id" binding:"required,uuid4"`

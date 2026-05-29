@@ -300,6 +300,6 @@ func TestShareMetadataRouteRequiresUnlockedShare(t *testing.T) {
 
 	var res serializer.Response
 	asserts.NoError(json.Unmarshal(w.Body.Bytes(), &res))
-	asserts.Equal(200, w.Code)
+	asserts.Equal(403, w.Code)
 	asserts.Equal(serializer.CodeNoPermissionErr, res.Code)
 }
