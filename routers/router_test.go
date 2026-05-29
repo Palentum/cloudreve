@@ -9,7 +9,6 @@ import (
 	"time"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
-	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/hashid"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/jinzhu/gorm"
@@ -25,7 +24,7 @@ func TestPing(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
-	asserts.Contains(w.Body.String(), conf.BackendVersion)
+	asserts.Contains(w.Body.String(), "pong")
 }
 
 func TestCaptcha(t *testing.T) {
