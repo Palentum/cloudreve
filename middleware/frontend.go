@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"html"
 	"github.com/cloudreve/Cloudreve/v3/bootstrap"
 	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
@@ -61,6 +63,9 @@ func FrontendFileHandler() gin.HandlerFunc {
 				"{pwa_small_icon}": html.EscapeString(options["pwa_small_icon"]),
 			}, fileContent)
 
+			// 注入 Service Worker 自愈脚本：版本变更时自动注销旧 SW
+			finalHTML = injectSWCleanup(finalHTML)
+
 			c.Header("Content-Type", "text/html")
 			c.String(200, finalHTML)
 			c.Abort()
@@ -75,4 +80,21 @@ func FrontendFileHandler() gin.HandlerFunc {
 		fileServer.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	}
+}
+
+// injectSWCleanup 在 index.html 中注入 Service Worker 自愈脚本。
+// 当检测到后端版本变更时，自动注销所有旧 SW 并刷新页面，
+// 解决升级后因旧 SW 缓存导致的白屏问题。
+func injectSWCleanup(html string) string {
+	// 对版本号做 JS 字符串字面量转义，防止注入
+	ver := strings.ReplaceAll(conf.BackendVersion, `\`, `\\`)
+	ver = strings.ReplaceAll(ver, `'`, `\'`)
+
+	script := fmt.Sprintf(`<script>!function(){try{var k='sw_cleanup_ver',v='%s';if(localStorage.getItem(k)!==v){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(i){return i.unregister()}))}).finally(function(){localStorage.setItem(k,v);window.location.reload()})}else{localStorage.setItem(k,v)}}}catch(e){}}</script>`, ver)
+
+	// 注入到 </body> 之前；若无 </body> 则追加到末尾
+	if idx := strings.LastIndex(html, "</body>"); idx != -1 {
+		return html[:idx] + script + html[idx:]
+	}
+	return html + script
 }

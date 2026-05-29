@@ -45,37 +45,48 @@ func (b *GinFS) Exists(prefix string, filepath string) bool {
 
 // InitStatic 初始化静态资源文件
 func InitStatic(statics fs.FS) {
-	if util.Exists(util.RelativePath(StaticFolder)) {
-		util.Log().Info("Folder with name \"statics\" already exists, it will be used to serve static files.")
-		StaticFS = static.LocalFile(util.RelativePath("statics"), false)
-	} else {
-		// 初始化静态资源
-		embedFS, err := fs.Sub(statics, "assets/build")
-		if err != nil {
-			util.Log().Panic("Failed to initialize static resources: %s", err)
-		}
-
-		StaticFS = &GinFS{
-			FS: http.FS(embedFS),
-		}
-	}
-	// 检查静态资源的版本
-	f, err := StaticFS.Open("version.json")
+	// 准备内嵌静态资源作为回退
+	embedFS, err := fs.Sub(statics, "assets/build")
 	if err != nil {
-		util.Log().Warning("Missing version identifier file in static resources, please delete \"statics\" folder and rebuild it.")
-		return
+		util.Log().Panic("Failed to initialize static resources: %s", err)
 	}
+	embeddedStaticFS := &GinFS{FS: http.FS(embedFS)}
+
+	// 优先尝试使用磁盘上的 statics 文件夹
+	if util.Exists(util.RelativePath(StaticFolder)) {
+		diskFS := static.LocalFile(util.RelativePath("statics"), false)
+		if validateStaticVersion(diskFS, "disk statics folder") {
+			util.Log().Info("Folder with name \"statics\" already exists, it will be used to serve static files.")
+			StaticFS = diskFS
+			return
+		}
+		util.Log().Warning("Statics folder version mismatch, falling back to embedded assets. Please delete \"statics\" folder and rebuild it.")
+	}
+
+	// 使用内嵌静态资源
+	validateStaticVersion(embeddedStaticFS, "embedded static assets")
+	StaticFS = embeddedStaticFS
+}
+
+// validateStaticVersion 验证静态资源版本，返回是否通过验证
+func validateStaticVersion(fs static.ServeFileSystem, source string) bool {
+	f, err := fs.Open("version.json")
+	if err != nil {
+		util.Log().Warning("Missing version identifier file in %s, please delete \"statics\" folder and rebuild it.", source)
+		return false
+	}
+	defer f.Close()
 
 	b, err := io.ReadAll(f)
 	if err != nil {
-		util.Log().Warning("Failed to read version identifier file in static resources, please delete \"statics\" folder and rebuild it.")
-		return
+		util.Log().Warning("Failed to read version identifier file in %s, please delete \"statics\" folder and rebuild it.", source)
+		return false
 	}
 
 	var v staticVersion
 	if err := json.Unmarshal(b, &v); err != nil {
-		util.Log().Warning("Failed to parse version identifier file in static resources: %s", err)
-		return
+		util.Log().Warning("Failed to parse version identifier file in %s: %s", source, err)
+		return false
 	}
 
 	staticName := "cloudreve-frontend"
@@ -84,14 +95,16 @@ func InitStatic(statics fs.FS) {
 	}
 
 	if v.Name != staticName {
-		util.Log().Warning("Static resource version mismatch, please delete \"statics\" folder and rebuild it.")
-		return
+		util.Log().Warning("Static resource name mismatch in %s [Current: %s, Desired: %s], please delete \"statics\" folder and rebuild it.", source, v.Name, staticName)
+		return false
 	}
 
 	if v.Version != conf.RequiredStaticVersion {
-		util.Log().Warning("Static resource version mismatch [Current %s, Desired: %s]，please delete \"statics\" folder and rebuild it.", v.Version, conf.RequiredStaticVersion)
-		return
+		util.Log().Warning("Static resource version mismatch in %s [Current: %s, Desired: %s], please delete \"statics\" folder and rebuild it.", source, v.Version, conf.RequiredStaticVersion)
+		return false
 	}
+
+	return true
 }
 
 // Eject 抽离内置静态资源

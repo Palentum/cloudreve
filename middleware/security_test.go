@@ -30,6 +30,7 @@ func TestSecurityHeaders(t *testing.T) {
 	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "default-src 'self'")
 	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "https://recaptcha.net")
 	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "https://ssl.captcha.qq.com")
+	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "https://storage.googleapis.com")
 	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "img-src 'self' data: blob: https:")
 	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "frame-src 'self' https://www.google.com")
  	a.Empty(c.Writer.Header().Get("Strict-Transport-Security"))
