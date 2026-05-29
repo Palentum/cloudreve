@@ -1,6 +1,7 @@
 package user
 
 import (
+	"crypto/subtle"
 	"fmt"
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/auth"
@@ -44,7 +45,7 @@ func (service *UserResetService) Reset(c *gin.Context) serializer.Response {
 
 	// 检查重设会话
 	resetSession, exist := cache.Get(fmt.Sprintf("user_reset_%d", uid))
-	if !exist || resetSession.(string) != service.Secret {
+	if !exist || subtle.ConstantTimeCompare([]byte(resetSession.(string)), []byte(service.Secret)) != 1 {
 		return serializer.Err(serializer.CodeTempLinkExpired, "Link is expired", err)
 	}
 
