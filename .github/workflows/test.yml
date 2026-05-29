@@ -23,11 +23,11 @@ jobs:
         with:
           submodules: "recursive"
 
-      - name: Build static files
+      - name: Build static assets zip
         run: |
-          mkdir assets/build
+          mkdir -p assets/build
           touch assets/build/test.html
-
+          cd assets && zip -r ../assets.zip . && cd ..
       - name: Test
         run: go test -coverprofile=coverage.txt -covermode=atomic ./...
 
