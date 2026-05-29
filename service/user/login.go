@@ -128,11 +128,15 @@ func (service *Enable2FA) Login(c *gin.Context) serializer.Response {
 func (service *UserLoginService) Login(c *gin.Context) serializer.Response {
 	expectedUser, err := model.GetUserByEmail(service.UserName)
 	if err != nil {
-		// 用户不存在
+		// 用户不存在：仍需执行 bcrypt 以恒定时间，防止通过时序侧信道枚举用户
+		model.DummyCheckPassword(service.Password)
 		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", err)
 	}
 
-	// 检查账户状态（在密码验证之前，防止通过错误码枚举用户）
+	// 先验证密码（无论账户状态如何，bcrypt 恒定时间执行）
+	authOK, _ := expectedUser.CheckPassword(service.Password)
+
+	// 再检查账户状态（此时 bcrypt 已消耗常量时间，无法通过时序区分）
 	if expectedUser.Status == model.Baned || expectedUser.Status == model.OveruseBaned {
 		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", nil)
 	}
@@ -140,8 +144,7 @@ func (service *UserLoginService) Login(c *gin.Context) serializer.Response {
 		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", nil)
 	}
 
-	// 验证密码
-	if authOK, _ := expectedUser.CheckPassword(service.Password); !authOK {
+	if !authOK {
 		return serializer.Err(serializer.CodeCredentialInvalid, "Wrong password or email address", nil)
 	}
 

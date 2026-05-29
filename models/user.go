@@ -25,6 +25,10 @@ const (
 	OveruseBaned
 )
 
+// dummyBcryptHash 用于恒定时间比较，防止时序侧信道枚举用户
+// 对应明文 "cloudreve-dummy-timing-sidechannel"，cost=12
+const dummyBcryptHash = "$2a$12$3/2H3bmfj3TOdrxb4WPbU.d6mxLPixDW0XU/Afi63ZNkIO0T7.THm"
+
 // ErrInsufficientStorage 存储配额不足
 var ErrInsufficientStorage = errors.New("insufficient storage quota")
 
@@ -312,7 +316,11 @@ func (user *User) CheckPassword(password string) (bool, error) {
 	}
 	return false, nil
 }
-
+// DummyCheckPassword 在用户不存在时执行一次 bcrypt 验证，防止通过时序侧信道枚举用户。
+// 使用预计算的 dummy hash，结果被丢弃，仅用于消耗与正常密码验证一致的 CPU 时间。
+func DummyCheckPassword(password string) {
+	_ = bcrypt.CompareHashAndPassword([]byte(dummyBcryptHash), []byte(password))
+}
 // upgradePassword 将旧格式密码透明升级为 bcrypt 并持久化
 func (user *User) upgradePassword(password string) {
 	// bcrypt 截断超过 72 字节的密码，跳过升级避免下次登录失败
