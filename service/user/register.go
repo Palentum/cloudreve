@@ -42,12 +42,13 @@ func (service *UserRegisterService) Register(c *gin.Context) serializer.Response
 	// 创建用户
 	if err := model.DB.Create(&user).Error; err != nil {
 		//检查已存在使用者是否尚未激活
-		expectedUser, err := model.GetUserByEmail(service.UserName)
+		expectedUser, _ := model.GetUserByEmail(service.UserName)
 		if expectedUser.Status == model.NotActivicated {
 			userNotActivated = true
 			user = expectedUser
 		} else {
-			return serializer.Err(serializer.CodeEmailExisted, "Email already in use", err)
+			// 不暴露邮箱是否已注册，返回成功伪装注册完成
+			return serializer.Response{Code: 0}
 		}
 	}
 
