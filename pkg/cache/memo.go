@@ -133,7 +133,7 @@ func (store *MemoStore) Persist(path string) error {
 		return fmt.Errorf("failed to serialize cache: %s", err)
 	}
 
-	err = os.WriteFile(path, res, 0644)
+	err = os.WriteFile(path, res, 0600)
 	return err
 }
 
