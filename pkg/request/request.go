@@ -149,7 +149,7 @@ func (resp *Response) GetResponse() (string, error) {
 	if resp.Err != nil {
 		return "", resp.Err
 	}
-	respBody, err := ioutil.ReadAll(resp.Response.Body)
+	respBody, err := ioutil.ReadAll(io.LimitReader(resp.Response.Body, 10<<20)) // 限制 10MB 防止 DoS
 	_ = resp.Response.Body.Close()
 
 	return string(respBody), err
