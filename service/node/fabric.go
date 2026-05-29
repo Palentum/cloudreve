@@ -1,8 +1,9 @@
 package node
 
-import (
-	"encoding/gob"
-	model "github.com/cloudreve/Cloudreve/v3/models"
+ import (
+	"io"
+ 	"encoding/gob"
+ 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cluster"
 	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/googledrive"
@@ -36,7 +37,7 @@ func HandleMasterHeartbeat(req *serializer.NodePingReq) serializer.Response {
 // HandleSlaveNotificationPush 转发从机的消息通知到本机消息队列
 func (s *SlaveNotificationService) HandleSlaveNotificationPush(c *gin.Context) serializer.Response {
 	var msg mq.Message
-	dec := gob.NewDecoder(c.Request.Body)
+	dec := gob.NewDecoder(io.LimitReader(c.Request.Body, 1<<20)) // 限制 1MB 防止 DoS
 	if err := dec.Decode(&msg); err != nil {
 		return serializer.ParamErr("Cannot parse notification message", err)
 	}
