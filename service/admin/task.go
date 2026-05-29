@@ -28,7 +28,9 @@ func (service *ImportTaskService) Create(c *gin.Context, user *model.User) seria
 	if err != nil {
 		return serializer.DBErr("Failed to create task record.", err)
 	}
-	task.TaskPoll.Submit(job)
+	if err := task.TaskPoll.Submit(job); err != nil {
+		return serializer.Err(serializer.CodeCreateTaskError, "", err)
+	}
 	return serializer.Response{}
 }
 

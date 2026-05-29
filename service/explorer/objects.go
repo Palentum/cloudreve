@@ -150,7 +150,9 @@ func (service *ItemDecompressService) CreateDecompressTask(c *gin.Context) seria
 	if err != nil {
 		return serializer.Err(serializer.CodeCreateTaskError, "", err)
 	}
-	task.TaskPoll.Submit(job)
+	if err := task.TaskPoll.Submit(job); err != nil {
+		return serializer.Err(serializer.CodeCreateTaskError, "", err)
+	}
 
 	return serializer.Response{}
 
@@ -228,7 +230,9 @@ func (service *ItemCompressService) CreateCompressTask(c *gin.Context) serialize
 	if err != nil {
 		return serializer.Err(serializer.CodeCreateTaskError, "", err)
 	}
-	task.TaskPoll.Submit(job)
+	if err := task.TaskPoll.Submit(job); err != nil {
+		return serializer.Err(serializer.CodeCreateTaskError, "", err)
+	}
 
 	return serializer.Response{}
 

@@ -99,7 +99,9 @@ func Resume(p Pool) {
 		}
 
 		if job != nil {
-			p.Submit(job)
+			if err := p.Submit(job); err != nil {
+				util.Log().Warning("Failed to resume task: %s", err)
+			}
 		}
 	}
 }

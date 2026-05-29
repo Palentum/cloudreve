@@ -30,8 +30,9 @@ func (t taskPoolMock) Add(num int) {
 	t.Called(num)
 }
 
-func (t taskPoolMock) Submit(job Job) {
-	t.Called(job)
+func (t taskPoolMock) Submit(job Job) error {
+	args := t.Called(job)
+	return args.Error(0)
 }
 
 func TestResume(t *testing.T) {
@@ -54,7 +55,7 @@ func TestResume(t *testing.T) {
 
 	// 有任务
 	{
-		mockPool.On("Submit", testMock.Anything)
+		mockPool.On("Submit", testMock.Anything).Return(nil)
 		mock.ExpectQuery("SELECT(.+)").WithArgs(Queued, Processing).WillReturnRows(sqlmock.NewRows([]string{"type", "props"}).AddRow(CompressTaskType, "{}"))
 		mock.ExpectQuery("SELECT(.+)users").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 		mock.ExpectQuery("SELECT(.+)policies").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))

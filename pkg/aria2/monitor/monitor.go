@@ -260,7 +260,11 @@ func (monitor *Monitor) Complete(pool task.Pool) bool {
 			}
 
 			// 提交回收任务
-			pool.Submit(job)
+			if err := pool.Submit(job); err != nil {
+				monitor.setErrorStatus(err)
+				monitor.RemoveTempFolder()
+				return true
+			}
 
 			return true
 		}
@@ -298,7 +302,11 @@ func (monitor *Monitor) transfer(pool task.Pool) bool {
 	}
 
 	// 提交中转任务
-	pool.Submit(job)
+	if err := pool.Submit(job); err != nil {
+		monitor.setErrorStatus(err)
+		monitor.RemoveTempFolder()
+		return true
+	}
 
 	// 更新任务ID
 	monitor.Task.TaskID = job.Model().ID

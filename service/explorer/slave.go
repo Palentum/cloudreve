@@ -155,10 +155,14 @@ func CreateTransferTask(c *gin.Context, req *serializer.SlaveTransferReq) serial
 			MasterID: id.(string),
 		}
 
+		var submitErr error
 		if err := cluster.DefaultController.SubmitTask(job.MasterID, job, req.Hash(job.MasterID), func(job interface{}) {
-			task.TaskPoll.Submit(job.(task.Job))
+			submitErr = task.TaskPoll.Submit(job.(task.Job))
 		}); err != nil {
 			return serializer.Err(serializer.CodeCreateTaskError, "", err)
+		}
+		if submitErr != nil {
+			return serializer.Err(serializer.CodeCreateTaskError, "", submitErr)
 		}
 
 		return serializer.Response{}

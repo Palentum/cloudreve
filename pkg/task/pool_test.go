@@ -3,6 +3,7 @@ package task
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	model "github.com/cloudreve/Cloudreve/v3/models"
@@ -33,20 +34,59 @@ func TestInit(t *testing.T) {
 	Init()
 	asserts.NoError(mock.ExpectationsWereMet())
 	asserts.Len(TaskPoll.(*AsyncPool).idleWorker, 10)
+	asserts.Equal(20, cap(TaskPoll.(*AsyncPool).queue))
 }
 
 func TestPool_Submit(t *testing.T) {
 	asserts := assert.New(t)
-	pool := &AsyncPool{
-		idleWorker: make(chan int, 1),
-	}
+	pool := newAsyncPool(1)
 	pool.Add(1)
+
+	done := make(chan struct{})
 	job := &MockJob{
 		DoFunc: func() {
-
+			close(done)
 		},
 	}
-	asserts.NotPanics(func() {
-		pool.Submit(job)
-	})
+
+	asserts.NoError(pool.Submit(job))
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("submitted job was not executed")
+	}
+}
+
+func TestPool_SubmitReturnsErrorWhenQueueFull(t *testing.T) {
+	asserts := assert.New(t)
+	pool := &AsyncPool{
+		idleWorker: make(chan int, 1),
+		queue:      make(chan struct{}, 1),
+	}
+
+	done := make(chan struct{})
+	job := &MockJob{
+		DoFunc: func() {
+			close(done)
+		},
+	}
+	asserts.NoError(pool.Submit(job))
+
+	rejected := &MockJob{
+		DoFunc: func() {
+			t.Fatal("rejected job must not run")
+		},
+	}
+	asserts.Equal(ErrQueueFull, pool.Submit(rejected))
+	asserts.Equal(Error, rejected.Status)
+	if asserts.NotNil(rejected.Err) {
+		asserts.Equal(ErrQueueFull.Error(), rejected.Err.Error)
+	}
+
+	pool.Add(1)
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("accepted job was not released")
+	}
 }

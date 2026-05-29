@@ -11,13 +11,24 @@ var TaskPoll Pool
 
 type Pool interface {
 	Add(num int)
-	Submit(job Job)
+	Submit(job Job) error
 }
 
-// AsyncPool 带有最大配额的任务池
+// AsyncPool 带有最大配额和队列深度限制的任务池
 type AsyncPool struct {
 	// 容量
 	idleWorker chan int
+	// 排队中和执行中的任务配额
+	queue chan struct{}
+}
+
+const queueDepthFactor = 2
+
+func newAsyncPool(maxWorker int) *AsyncPool {
+	return &AsyncPool{
+		idleWorker: make(chan int, maxWorker),
+		queue:      make(chan struct{}, maxWorker*queueDepthFactor),
+	}
 }
 
 // Add 增加可用Worker数量
@@ -42,23 +53,37 @@ func (pool *AsyncPool) freeWorker() {
 }
 
 // Submit 开始提交任务
-func (pool *AsyncPool) Submit(job Job) {
+func (pool *AsyncPool) Submit(job Job) error {
+	select {
+	case pool.queue <- struct{}{}:
+	default:
+		job.SetError(&JobError{Msg: "Task queue is full.", Error: ErrQueueFull.Error()})
+		job.SetStatus(Error)
+		return ErrQueueFull
+	}
+
 	go func() {
+		defer func() {
+			<-pool.queue
+		}()
+
 		util.Log().Debug("Waiting for Worker.")
 		worker := pool.obtainWorker()
+		defer func() {
+			pool.freeWorker()
+			util.Log().Debug("Worker released.")
+		}()
 		util.Log().Debug("Worker obtained.")
 		worker.Do(job)
-		util.Log().Debug("Worker released.")
-		pool.freeWorker()
 	}()
+
+	return nil
 }
 
 // Init 初始化任务池
 func Init() {
 	maxWorker := model.GetIntSetting("max_worker_num", 10)
-	TaskPoll = &AsyncPool{
-		idleWorker: make(chan int, maxWorker),
-	}
+	TaskPoll = newAsyncPool(maxWorker)
 	TaskPoll.Add(maxWorker)
 	util.Log().Info("Initialize task queue with WorkerNum = %d", maxWorker)
 

@@ -37,7 +37,8 @@ func (job *MockJob) Do() {
 	job.DoFunc()
 }
 
-func (job *MockJob) SetError(*JobError) {
+func (job *MockJob) SetError(err *JobError) {
+	job.Err = err
 }
 
 func (job *MockJob) GetError() *JobError {

@@ -146,6 +146,7 @@ func (t TaskPoolMock) Add(num int) {
 	t.Called(num)
 }
 
-func (t TaskPoolMock) Submit(job task.Job) {
-	t.Called(job)
+func (t TaskPoolMock) Submit(job task.Job) error {
+	args := t.Called(job)
+	return args.Error(0)
 }

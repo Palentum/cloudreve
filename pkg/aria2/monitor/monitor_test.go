@@ -406,7 +406,7 @@ func TestMonitor_Complete(t *testing.T) {
 	mockNode := &mocks.NodeMock{}
 	mockNode.On("ID").Return(uint(1))
 	mockPool := &mocks.TaskPoolMock{}
-	mockPool.On("Submit", testMock.Anything)
+	mockPool.On("Submit", testMock.Anything).Return(nil)
 	m := &Monitor{
 		node: mockNode,
 		Task: &model.Download{
