@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
+
 const (
 	// Active 账户正常状态
 	Active = iota
@@ -110,7 +111,6 @@ func (user *User) IncreaseStorage(size uint64) bool {
 	return false
 }
 
-// ChangeStorage 更新用户容量
 // ChangeStorage 更新用户容量。operator 必须为 "+" 或 "-"。
 func (user *User) ChangeStorage(tx *gorm.DB, operator string, size uint64, maxStorage uint64) error {
 	if maxStorage > 0 && operator == "+" {
@@ -249,7 +249,7 @@ func (user *User) AfterFind() (err error) {
 	return err
 }
 
-//SerializeOptions 将序列后的Option写入到数据库字段
+// SerializeOptions 将序列后的Option写入到数据库字段
 func (user *User) SerializeOptions() (err error) {
 	optionsValue, err := json.Marshal(&user.OptionsSerialized)
 	user.Options = string(optionsValue)
@@ -310,11 +310,13 @@ func (user *User) CheckPassword(password string) (bool, error) {
 	}
 	return false, nil
 }
+
 // DummyCheckPassword 在用户不存在时执行一次 bcrypt 验证，防止通过时序侧信道枚举用户。
 // 使用预计算的 dummy hash，结果被丢弃，仅用于消耗与正常密码验证一致的 CPU 时间。
 func DummyCheckPassword(password string) {
 	_ = bcrypt.CompareHashAndPassword([]byte(dummyBcryptHash), []byte(password))
 }
+
 // upgradePassword 将旧格式密码透明升级为 bcrypt 并持久化
 func (user *User) upgradePassword(password string) {
 	// bcrypt 截断超过 72 字节的密码，跳过升级避免下次登录失败

@@ -335,7 +335,7 @@ func S3CallbackAuth() gin.HandlerFunc {
 }
 
 // IsAdmin 必须为管理员用户组
- func IsAdmin() gin.HandlerFunc {
+func IsAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRaw, _ := c.Get("user")
 		if userRaw == nil {

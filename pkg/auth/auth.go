@@ -1,10 +1,10 @@
 package auth
 
- import (
+import (
+	"bytes"
+	"fmt"
 	"io"
- 	"bytes"
- 	"fmt"
- 	"io/ioutil"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"

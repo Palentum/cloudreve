@@ -5,17 +5,17 @@
 package webdav
 
 import (
+	"container/heap"
 	"crypto/rand"
 	"encoding/hex"
-	"container/heap"
 	"errors"
 	"strconv"
- 	"strings"
+	"strings"
 	"sync"
- 	"time"
- )
+	"time"
+)
 
- var (
+var (
 	// ErrConfirmationFailed is returned by a LockSystem's Confirm method.
 	ErrConfirmationFailed = errors.New("webdav: confirmation failed")
 	// ErrForbidden is returned by a LockSystem's Unlock method.
@@ -130,6 +130,7 @@ type memLS struct {
 	// Duration and are yet to expire.
 	byExpiry byExpiry
 }
+
 func (m *memLS) nextToken() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {

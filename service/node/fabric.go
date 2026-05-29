@@ -1,9 +1,10 @@
 package node
 
- import (
+import (
+	"encoding/gob"
 	"io"
- 	"encoding/gob"
- 	model "github.com/cloudreve/Cloudreve/v3/models"
+
+	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cluster"
 	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/driver/googledrive"
