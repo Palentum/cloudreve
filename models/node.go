@@ -77,6 +77,9 @@ func (node *Node) AfterFind() (err error) {
 	// 解析离线下载设置到 Aria2OptionsSerialized
 	if node.Aria2Options != "" {
 		err = json.Unmarshal([]byte(node.Aria2Options), &node.Aria2OptionsSerialized)
+		if err == nil && node.Aria2OptionsSerialized.Token != "" {
+			node.Aria2OptionsSerialized.Token, _ = cipher.Decrypt(node.Aria2OptionsSerialized.Token)
+		}
 	}
 
 	return err
@@ -84,8 +87,25 @@ func (node *Node) AfterFind() (err error) {
 
 // BeforeSave Save策略前的钩子
 func (node *Node) BeforeSave() (err error) {
+	// 保存明文以便还原
+	origToken := node.Aria2OptionsSerialized.Token
+	defer func() {
+		if err != nil {
+			node.Aria2OptionsSerialized.Token = origToken
+		}
+	}()
+
+	// 加密 Aria2 Token（兼容旧明文：非密文输入 Encrypt 不报错）
+	if origToken != "" {
+		node.Aria2OptionsSerialized.Token, err = cipher.Encrypt(origToken)
+		if err != nil {
+			return err
+		}
+	}
+
 	optionsValue, err := json.Marshal(&node.Aria2OptionsSerialized)
 	node.Aria2Options = string(optionsValue)
+	node.Aria2OptionsSerialized.Token = origToken // 还原明文供调用方继续使用
 	if err != nil {
 		return err
 	}
