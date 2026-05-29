@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/cloudreve/Cloudreve/v3/pkg/wopi"
 	"github.com/cloudreve/Cloudreve/v3/service/explorer"
 	"github.com/gin-gonic/gin"
@@ -15,7 +17,8 @@ func CheckFileInfo(c *gin.Context) {
 	res, err := service.FileInfo(c)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
-		c.Header(wopi.ServerErrorHeader, err.Error())
+		c.Header(wopi.ServerErrorHeader, "Internal server error")
+		util.Log().Warning("WOPI CheckFileInfo error: %s", err)
 		return
 	}
 
@@ -28,7 +31,8 @@ func GetFile(c *gin.Context) {
 	err := service.GetFile(c)
 	if err != nil {
 		c.Status(http.StatusInternalServerError)
-		c.Header(wopi.ServerErrorHeader, err.Error())
+		c.Header(wopi.ServerErrorHeader, "Internal server error")
+		util.Log().Warning("WOPI GetFile error: %s", err)
 		return
 	}
 }
@@ -43,15 +47,18 @@ func PutFile(c *gin.Context) {
 	switch res.Code {
 	case serializer.CodeFileTooLarge:
 		c.Status(http.StatusRequestEntityTooLarge)
-		c.Header(wopi.ServerErrorHeader, res.Error)
+		c.Header(wopi.ServerErrorHeader, "Internal server error")
+		util.Log().Warning("WOPI PutFile error: %s", res.Error)
 	case serializer.CodeNotFound:
 		c.Status(http.StatusNotFound)
-		c.Header(wopi.ServerErrorHeader, res.Error)
+		c.Header(wopi.ServerErrorHeader, "Internal server error")
+		util.Log().Warning("WOPI PutFile error: %s", res.Error)
 	case 0:
 		c.Status(http.StatusOK)
 	default:
 		c.Status(http.StatusInternalServerError)
-		c.Header(wopi.ServerErrorHeader, res.Error)
+		c.Header(wopi.ServerErrorHeader, "Internal server error")
+		util.Log().Warning("WOPI PutFile error: %s", res.Error)
 	}
 }
 
@@ -67,7 +74,8 @@ func ModifyFile(c *gin.Context) {
 		err := service.Rename(c)
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
-			c.Header(wopi.ServerErrorHeader, err.Error())
+			c.Header(wopi.ServerErrorHeader, "Internal server error")
+			util.Log().Warning("WOPI ModifyFile error: %s", err)
 			return
 		}
 	default:
