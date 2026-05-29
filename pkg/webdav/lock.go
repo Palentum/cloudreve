@@ -5,15 +5,17 @@
 package webdav
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"container/heap"
 	"errors"
 	"strconv"
-	"strings"
+ 	"strings"
 	"sync"
-	"time"
-)
+ 	"time"
+ )
 
-var (
+ var (
 	// ErrConfirmationFailed is returned by a LockSystem's Confirm method.
 	ErrConfirmationFailed = errors.New("webdav: confirmation failed")
 	// ErrForbidden is returned by a LockSystem's Unlock method.
@@ -116,7 +118,6 @@ func NewMemLS() LockSystem {
 	return &memLS{
 		byName:  make(map[string]*memLSNode),
 		byToken: make(map[string]*memLSNode),
-		gen:     uint64(time.Now().Unix()),
 	}
 }
 
@@ -129,12 +130,13 @@ type memLS struct {
 	// Duration and are yet to expire.
 	byExpiry byExpiry
 }
-
 func (m *memLS) nextToken() string {
-	m.gen++
-	return strconv.FormatUint(m.gen, 10)
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("webdav: failed to generate random token: " + err.Error())
+	}
+	return hex.EncodeToString(b)
 }
-
 func (m *memLS) collectExpiredNodes(now time.Time) {
 	for len(m.byExpiry) > 0 {
 		if now.Before(m.byExpiry[0].expiry) {
