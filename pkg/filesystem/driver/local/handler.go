@@ -160,12 +160,16 @@ func (handler Driver) Put(ctx context.Context, file fsctx.FileHeader) error {
 
 	var out *os.File
 
-	openMode := os.O_CREATE | os.O_RDWR
-	if fileInfo.Mode&fsctx.Append == fsctx.Append {
-		openMode |= os.O_APPEND
-	} else {
-		openMode |= os.O_TRUNC
-	}
+ 	openMode := os.O_CREATE | os.O_RDWR
+ 	if fileInfo.Mode&fsctx.Append == fsctx.Append {
+ 		openMode |= os.O_APPEND
+ 	} else {
+ 		openMode |= os.O_TRUNC
+		// 非 Overwrite 模式使用 O_EXCL 避免 TOCTOU 竞态
+		if fileInfo.Mode&fsctx.Overwrite != fsctx.Overwrite {
+			openMode |= os.O_EXCL
+		}
+ 	}
 
 	out, err = os.OpenFile(dst, openMode, Perm)
 	if err != nil {
