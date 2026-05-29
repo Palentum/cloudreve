@@ -28,6 +28,10 @@ func TestSecurityHeaders(t *testing.T) {
 	a.Equal("strict-origin-when-cross-origin", c.Writer.Header().Get("Referrer-Policy"))
  	a.Equal("0", c.Writer.Header().Get("X-XSS-Protection"))
 	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "default-src 'self'")
+	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "https://recaptcha.net")
+	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "https://ssl.captcha.qq.com")
+	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "img-src 'self' data: blob: https:")
+	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "frame-src 'self' https://www.google.com")
  	a.Empty(c.Writer.Header().Get("Strict-Transport-Security"))
 }
 
