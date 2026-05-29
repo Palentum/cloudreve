@@ -22,6 +22,20 @@ func TestWopiWriteAccess(t *testing.T) {
 		c, _ := gin.CreateTestContext(rec)
 		c.Set(WopiSessionCtx, &wopi.SessionCache{Action: wopi.ActionPreview})
 		testFunc(c)
+ 		asserts.True(c.IsAborted())
+	}
+ 	// missing session context
+	{
+		c, _ := gin.CreateTestContext(rec)
+		testFunc(c)
+		asserts.True(c.IsAborted())
+	}
+
+	// invalid session context type
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set(WopiSessionCtx, "not-a-session")
+		testFunc(c)
 		asserts.True(c.IsAborted())
 	}
 
@@ -72,6 +86,35 @@ func TestWopiAccessValidation(t *testing.T) {
 		asserts.True(c.IsAborted())
 	}
 
+	// missing object_id
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest("GET", "/wopi/files/1?access_token=", nil)
+		query := c.Request.URL.Query()
+		query.Set(wopi.AccessTokenQuery, "sessionID.key")
+		c.Request.URL.RawQuery = query.Encode()
+		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1, AccessToken: "sessionID.key"}, 0)
+		mock.ExpectQuery("SELECT(.+)users(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+		// 故意不设置 object_id
+		testFunc(c)
+		asserts.True(c.IsAborted())
+		asserts.NoError(mock.ExpectationsWereMet())
+	}
+
+	// invalid object_id type
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest("GET", "/wopi/files/1?access_token=", nil)
+		query := c.Request.URL.Query()
+		query.Set(wopi.AccessTokenQuery, "sessionID.key")
+		c.Request.URL.RawQuery = query.Encode()
+		mockCache.Set(wopi.SessionCachePrefix+"sessionID", wopi.SessionCache{UserID: 1, FileID: 1, AccessToken: "sessionID.key"}, 0)
+		mock.ExpectQuery("SELECT(.+)users(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+		c.Set("object_id", "not-a-uint")
+		testFunc(c)
+		asserts.True(c.IsAborted())
+		asserts.NoError(mock.ExpectationsWereMet())
+	}
 	// user key not exist
 	{
 		c, _ := gin.CreateTestContext(rec)

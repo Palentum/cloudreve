@@ -14,11 +14,23 @@ import (
 const (
 	WopiSessionCtx = "wopi_session"
 )
-
 // WopiWriteAccess validates if write access is obtained.
 func WopiWriteAccess() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		session := c.MustGet(WopiSessionCtx).(*wopi.SessionCache)
+		sessionRaw, ok := c.Get(WopiSessionCtx)
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			c.Header(wopi.ServerErrorHeader, "missing session context")
+			c.Abort()
+			return
+		}
+		session, ok := sessionRaw.(*wopi.SessionCache)
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			c.Header(wopi.ServerErrorHeader, "invalid session context type")
+			c.Abort()
+			return
+		}
 		if session.Action != wopi.ActionEdit {
 			c.Status(http.StatusNotFound)
 			c.Header(wopi.ServerErrorHeader, "read-only access")
@@ -29,7 +41,6 @@ func WopiWriteAccess() gin.HandlerFunc {
 		c.Next()
 	}
 }
-
 func WopiAccessValidation(w wopi.Client, store cache.Driver) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawToken := c.Query(wopi.AccessTokenQuery)
@@ -40,7 +51,6 @@ func WopiAccessValidation(w wopi.Client, store cache.Driver) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 		sessionRaw, exist := store.Get(wopi.SessionCachePrefix + accessToken[0])
 		if !exist {
 			c.Status(http.StatusForbidden)
@@ -48,7 +58,6 @@ func WopiAccessValidation(w wopi.Client, store cache.Driver) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 		session := sessionRaw.(wopi.SessionCache)
 		if subtle.ConstantTimeCompare([]byte(session.AccessToken), []byte(rawToken)) != 1 {
 			c.Status(http.StatusForbidden)
@@ -63,15 +72,26 @@ func WopiAccessValidation(w wopi.Client, store cache.Driver) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		fileID := c.MustGet("object_id").(uint)
+		fileIDRaw, ok := c.Get("object_id")
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			c.Header(wopi.ServerErrorHeader, "missing file ID")
+			c.Abort()
+			return
+		}
+		fileID, ok := fileIDRaw.(uint)
+		if !ok {
+			c.Status(http.StatusInternalServerError)
+			c.Header(wopi.ServerErrorHeader, "invalid file ID type")
+			c.Abort()
+			return
+		}
 		if fileID != session.FileID {
 			c.Status(http.StatusInternalServerError)
 			c.Header(wopi.ServerErrorHeader, "file not found")
 			c.Abort()
 			return
 		}
-
 		c.Set("user", &user)
 		c.Set(WopiSessionCtx, &session)
 		c.Next()
