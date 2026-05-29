@@ -4,13 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"net/url"
 
 	"github.com/cloudreve/Cloudreve/v3/pkg/hashid"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/duo-labs/webauthn/webauthn"
 )
-
 /*
 	`webauthn.User` 接口的实现
 */
@@ -45,7 +44,7 @@ func (user User) WebAuthnCredentials() []webauthn.Credential {
 	var res []webauthn.Credential
 	err := json.Unmarshal([]byte(user.Authn), &res)
 	if err != nil {
-		fmt.Println(err)
+		util.Log().Warning("Failed to unmarshal WebAuthn credentials for user %d: %s", user.ID, err)
 	}
 	return res
 }
