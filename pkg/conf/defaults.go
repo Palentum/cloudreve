@@ -33,7 +33,7 @@ var CORSConfig = &cors{
 	AllowCredentials: false,
 	ExposeHeaders:    nil,
 	SameSite:         "Lax",
-	Secure:           false,
+	Secure:           true,
 }
 
 // SlaveConfig 从机配置
