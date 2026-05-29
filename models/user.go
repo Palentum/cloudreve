@@ -107,6 +107,7 @@ func (user *User) IncreaseStorage(size uint64) bool {
 }
 
 // ChangeStorage 更新用户容量
+// ChangeStorage 更新用户容量。operator 必须为 "+" 或 "-"。
 func (user *User) ChangeStorage(tx *gorm.DB, operator string, size uint64, maxStorage uint64) error {
 	if maxStorage > 0 && operator == "+" {
 		result := tx.Model(user).
@@ -120,7 +121,15 @@ func (user *User) ChangeStorage(tx *gorm.DB, operator string, size uint64, maxSt
 		}
 		return nil
 	}
-	return tx.Model(user).Update("storage", gorm.Expr("storage "+operator+" ?", size)).Error
+
+	switch operator {
+	case "+":
+		return tx.Model(user).Update("storage", gorm.Expr("storage + ?", size)).Error
+	case "-":
+		return tx.Model(user).Update("storage", gorm.Expr("storage - ?", size)).Error
+	default:
+		return errors.New("invalid storage operator: " + operator)
+	}
 }
 
 // IncreaseStorageWithoutCheck 忽略可用容量，增加用户已用容量
