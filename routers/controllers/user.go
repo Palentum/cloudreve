@@ -20,33 +20,33 @@ func StartLoginAuthn(c *gin.Context) {
 	userName := c.Param("username")
 	expectedUser, err := model.GetActiveUserByEmail(userName)
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeUserNotFound, "", err))
+		respond(c, serializer.Err(serializer.CodeUserNotFound, "", err))
 		return
 	}
 
 	instance, err := authn.NewAuthnInstance()
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
+		respond(c, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
 		return
 	}
 
 	options, sessionData, err := instance.BeginLogin(expectedUser)
 
 	if err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	val, err := json.Marshal(sessionData)
 	if err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	util.SetSession(c, map[string]interface{}{
 		"registration-session": val,
 	})
-	c.JSON(200, serializer.Response{Code: 0, Data: options})
+	respond(c, serializer.Response{Code: 0, Data: options})
 }
 
 // FinishLoginAuthn 完成注册WebAuthn登录
@@ -54,7 +54,7 @@ func FinishLoginAuthn(c *gin.Context) {
 	userName := c.Param("username")
 	expectedUser, err := model.GetActiveUserByEmail(userName)
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeUserNotFound, "", err))
+		respond(c, serializer.Err(serializer.CodeUserNotFound, "", err))
 		return
 	}
 
@@ -65,21 +65,21 @@ func FinishLoginAuthn(c *gin.Context) {
 
 	instance, err := authn.NewAuthnInstance()
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
+		respond(c, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
 		return
 	}
 
 	_, err = instance.FinishLogin(expectedUser, sessionData, c.Request)
 
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeWebAuthnCredentialError, "Verification failed", err))
+		respond(c, serializer.Err(serializer.CodeWebAuthnCredentialError, "Verification failed", err))
 		return
 	}
 
 	util.SetSession(c, map[string]interface{}{
 		"user_id": expectedUser.ID,
 	})
-	c.JSON(200, serializer.BuildUserResponse(expectedUser))
+	respond(c, serializer.BuildUserResponse(expectedUser))
 }
 
 // StartRegAuthn 开始注册WebAuthn信息
@@ -88,27 +88,27 @@ func StartRegAuthn(c *gin.Context) {
 
 	instance, err := authn.NewAuthnInstance()
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
+		respond(c, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
 		return
 	}
 
 	options, sessionData, err := instance.BeginRegistration(currUser)
 
 	if err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	val, err := json.Marshal(sessionData)
 	if err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	util.SetSession(c, map[string]interface{}{
 		"registration-session": val,
 	})
-	c.JSON(200, serializer.Response{Code: 0, Data: options})
+	respond(c, serializer.Response{Code: 0, Data: options})
 }
 
 // FinishRegAuthn 完成注册WebAuthn信息
@@ -121,24 +121,24 @@ func FinishRegAuthn(c *gin.Context) {
 
 	instance, err := authn.NewAuthnInstance()
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
+		respond(c, serializer.Err(serializer.CodeInitializeAuthn, "Cannot initialize authn", err))
 		return
 	}
 
 	credential, err := instance.FinishRegistration(currUser, sessionData, c.Request)
 
 	if err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	err = currUser.RegisterAuthn(credential)
 	if err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
-	c.JSON(200, serializer.Response{
+	respond(c, serializer.Response{
 		Code: 0,
 		Data: map[string]interface{}{
 			"id":          credential.ID,
@@ -152,9 +152,9 @@ func UserLogin(c *gin.Context) {
 	var service user.UserLoginService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Login(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -163,9 +163,9 @@ func UserRegister(c *gin.Context) {
 	var service user.UserRegisterService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Register(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -174,9 +174,9 @@ func User2FALogin(c *gin.Context) {
 	var service user.Enable2FA
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Login(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -185,9 +185,9 @@ func UserSendReset(c *gin.Context) {
 	var service user.UserResetEmailService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Reset(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -196,9 +196,9 @@ func UserReset(c *gin.Context) {
 	var service user.UserResetService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Reset(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -207,30 +207,30 @@ func UserActivate(c *gin.Context) {
 	var service user.SettingService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Activate(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
 // UserSignOut 用户退出登录
 func UserSignOut(c *gin.Context) {
 	util.DeleteSession(c, "user_id")
-	c.JSON(200, serializer.Response{})
+	respond(c, serializer.Response{})
 }
 
 // UserMe 获取当前登录的用户
 func UserMe(c *gin.Context) {
 	currUser := CurrentUser(c)
 	res := serializer.BuildUserResponse(*currUser)
-	c.JSON(200, res)
+	respond(c, res)
 }
 
 // UserStorage 获取用户的存储信息
 func UserStorage(c *gin.Context) {
 	currUser := CurrentUser(c)
 	res := serializer.BuildUserStorageResponse(*currUser)
-	c.JSON(200, res)
+	respond(c, res)
 }
 
 // UserTasks 获取任务队列
@@ -238,9 +238,9 @@ func UserTasks(c *gin.Context) {
 	var service user.SettingListService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.ListTasks(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -249,9 +249,9 @@ func UserSetting(c *gin.Context) {
 	var service user.SettingService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Settings(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -259,10 +259,10 @@ func UserSetting(c *gin.Context) {
 func UseGravatar(c *gin.Context) {
 	u := CurrentUser(c)
 	if err := u.Update(map[string]interface{}{"avatar": "gravatar"}); err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeDBError, "无法更新头像", err))
+		respond(c, serializer.Err(serializer.CodeDBError, "无法更新头像", err))
 		return
 	}
-	c.JSON(200, serializer.Response{})
+	respond(c, serializer.Response{})
 }
 
 // UploadAvatar 从文件上传头像
@@ -271,26 +271,26 @@ func UploadAvatar(c *gin.Context) {
 	maxSize := model.GetIntSetting("avatar_size", 2097152)
 	if c.Request.ContentLength == -1 || c.Request.ContentLength > int64(maxSize) {
 		request.BlackHole(c.Request.Body)
-		c.JSON(200, serializer.Err(serializer.CodeFileTooLarge, "", nil))
+		respond(c, serializer.Err(serializer.CodeFileTooLarge, "", nil))
 		return
 	}
 
 	// 取得上传的文件
 	file, err := c.FormFile("avatar")
 	if err != nil {
-		c.JSON(200, serializer.ParamErr("Failed to read avatar file data", err))
+		respond(c, serializer.ParamErr("Failed to read avatar file data", err))
 		return
 	}
 
 	// 初始化头像
 	r, err := file.Open()
 	if err != nil {
-		c.JSON(200, serializer.ParamErr("Failed to read avatar file data", err))
+		respond(c, serializer.ParamErr("Failed to read avatar file data", err))
 		return
 	}
 	avatar, err := thumb.NewThumbFromFile(r, file.Filename)
 	if err != nil {
-		c.JSON(200, serializer.ParamErr("Invalid image", err))
+		respond(c, serializer.ParamErr("Invalid image", err))
 		return
 	}
 
@@ -298,7 +298,7 @@ func UploadAvatar(c *gin.Context) {
 	u := CurrentUser(c)
 	err = avatar.CreateAvatar(u.ID)
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeIOFailed, "Failed to create avatar file", err))
+		respond(c, serializer.Err(serializer.CodeIOFailed, "Failed to create avatar file", err))
 		return
 	}
 
@@ -306,11 +306,11 @@ func UploadAvatar(c *gin.Context) {
 	if err := u.Update(map[string]interface{}{
 		"avatar": "file",
 	}); err != nil {
-		c.JSON(200, serializer.DBErr("Failed to update avatar attribute", err))
+		respond(c, serializer.DBErr("Failed to update avatar attribute", err))
 		return
 	}
 
-	c.JSON(200, serializer.Response{})
+	respond(c, serializer.Response{})
 }
 
 // GetUserAvatar 获取用户头像
@@ -323,7 +323,7 @@ func GetUserAvatar(c *gin.Context) {
 			c.Redirect(301, res.Data.(string))
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -355,15 +355,15 @@ func UpdateOption(c *gin.Context) {
 
 		subErr = c.ShouldBindJSON(subService)
 		if subErr != nil {
-			c.JSON(200, ErrorResponse(subErr))
+			respond(c, ErrorResponse(subErr))
 			return
 		}
 
 		res := subService.Update(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -372,9 +372,9 @@ func UserInit2FA(c *gin.Context) {
 	var service user.SettingService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Init2FA(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -382,7 +382,7 @@ func UserInit2FA(c *gin.Context) {
 func UserPrepareCopySession(c *gin.Context) {
 	var service user.CopySessionService
 	res := service.Prepare(c, CurrentUser(c))
-	c.JSON(200, res)
+	respond(c, res)
 
 }
 
@@ -391,8 +391,8 @@ func UserPerformCopySession(c *gin.Context) {
 	var service user.CopySessionService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Copy(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

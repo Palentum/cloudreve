@@ -16,9 +16,9 @@ func Delete(c *gin.Context) {
 	var service explorer.ItemIDService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Delete(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -31,9 +31,9 @@ func Move(c *gin.Context) {
 	var service explorer.ItemMoveService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Move(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -46,9 +46,9 @@ func Copy(c *gin.Context) {
 	var service explorer.ItemMoveService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Copy(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -61,9 +61,9 @@ func Rename(c *gin.Context) {
 	var service explorer.ItemRenameService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Rename(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -77,8 +77,8 @@ func GetProperty(c *gin.Context) {
 	service.ID = c.Param("id")
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.GetProperty(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

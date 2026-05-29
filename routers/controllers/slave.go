@@ -21,10 +21,10 @@ func SlaveUpload(c *gin.Context) {
 	var service explorer.UploadService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.SlaveUpload(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 		request.BlackHole(c.Request.Body)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -37,9 +37,9 @@ func SlaveGetUploadSession(c *gin.Context) {
 	var service explorer.SlaveCreateUploadSessionService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Create(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -52,9 +52,9 @@ func SlaveDeleteUploadSession(c *gin.Context) {
 	var service explorer.UploadSessionService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.SlaveDelete(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -85,10 +85,10 @@ func SlavePreview(c *gin.Context) {
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.ServeFile(ctx, c, false)
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -102,10 +102,10 @@ func SlaveThumb(c *gin.Context) {
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Thumb(ctx, c)
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -118,9 +118,9 @@ func SlaveDelete(c *gin.Context) {
 	var service explorer.SlaveFilesService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Delete(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -129,9 +129,9 @@ func SlavePing(c *gin.Context) {
 	var service admin.SlavePingService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Test()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -140,9 +140,9 @@ func SlaveList(c *gin.Context) {
 	var service explorer.SlaveListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.List(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -151,9 +151,9 @@ func SlaveHeartbeat(c *gin.Context) {
 	var service serializer.NodePingReq
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := node.HandleMasterHeartbeat(&service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -162,9 +162,9 @@ func SlaveAria2Create(c *gin.Context) {
 	var service serializer.SlaveAria2Call
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := aria2.Add(c, &service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -173,9 +173,9 @@ func SlaveAria2Status(c *gin.Context) {
 	var service serializer.SlaveAria2Call
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := aria2.SlaveStatus(c, &service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -184,9 +184,9 @@ func SlaveCancelAria2Task(c *gin.Context) {
 	var service serializer.SlaveAria2Call
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := aria2.SlaveCancel(c, &service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -195,9 +195,9 @@ func SlaveSelectTask(c *gin.Context) {
 	var service serializer.SlaveAria2Call
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := aria2.SlaveSelect(c, &service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -206,9 +206,9 @@ func SlaveCreateTransferTask(c *gin.Context) {
 	var service serializer.SlaveTransferReq
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := explorer.CreateTransferTask(c, &service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -217,9 +217,9 @@ func SlaveNotificationPush(c *gin.Context) {
 	var service node.SlaveNotificationService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.HandleSlaveNotificationPush(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -228,9 +228,9 @@ func SlaveGetOauthCredential(c *gin.Context) {
 	var service node.OauthCredentialService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Get(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -239,8 +239,8 @@ func SlaveDeleteTempFile(c *gin.Context) {
 	var service serializer.SlaveAria2Call
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := aria2.SlaveDeleteTemp(c, &service)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

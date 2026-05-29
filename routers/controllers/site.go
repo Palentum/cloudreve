@@ -38,16 +38,16 @@ func SiteConfig(c *gin.Context) {
 	// 如果已登录，则同时返回用户信息和标签
 	user, _ := c.Get("user")
 	if user, ok := user.(*model.User); ok {
-		c.JSON(200, serializer.BuildSiteConfig(siteConfig, user, wopiExts))
+		respond(c, serializer.BuildSiteConfig(siteConfig, user, wopiExts))
 		return
 	}
 
-	c.JSON(200, serializer.BuildSiteConfig(siteConfig, nil, wopiExts))
+	respond(c, serializer.BuildSiteConfig(siteConfig, nil, wopiExts))
 }
 
 // Ping 状态检查页面
 func Ping(c *gin.Context) {
-	c.JSON(200, serializer.Response{
+	respond(c, serializer.Response{
 		Code: 0,
 		Data: "pong",
 	})
@@ -88,7 +88,7 @@ func Captcha(c *gin.Context) {
 	// 将验证码图像编码为Base64
 	base64stringD := base64Captcha.CaptchaWriteToBase64Encoding(capD)
 
-	c.JSON(200, serializer.Response{
+	respond(c, serializer.Response{
 		Code: 0,
 		Data: base64stringD,
 	})

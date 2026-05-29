@@ -64,9 +64,9 @@ func GetWebDAVAccounts(c *gin.Context) {
 	var service setting.WebDAVListService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Accounts(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -75,9 +75,9 @@ func DeleteWebDAVAccounts(c *gin.Context) {
 	var service setting.WebDAVAccountService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Delete(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -86,9 +86,9 @@ func UpdateWebDAVAccounts(c *gin.Context) {
 	var service setting.WebDAVAccountUpdateService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Update(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -97,8 +97,8 @@ func CreateWebDAVAccounts(c *gin.Context) {
 	var service setting.WebDAVAccountCreateService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Create(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

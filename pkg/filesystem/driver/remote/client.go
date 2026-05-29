@@ -117,7 +117,7 @@ func (c *remoteClient) DeleteUploadSession(ctx context.Context, sessionID string
 		"upload/"+sessionID,
 		nil,
 		request.WithContext(ctx),
-	).CheckHTTPResponse(200).DecodeResponse()
+	).DecodeResponse()
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (c *remoteClient) CreateUploadSession(ctx context.Context, session *seriali
 		"upload",
 		bodyReader,
 		request.WithContext(ctx),
-	).CheckHTTPResponse(200).DecodeResponse()
+	).DecodeResponse()
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (c *remoteClient) uploadChunk(ctx context.Context, sessionID string, index 
 		request.WithTimeout(time.Duration(0)),
 		request.WithContentLength(size),
 		request.WithHeader(map[string][]string{OverwriteHeader: {fmt.Sprintf("%t", overwrite)}}),
-	).CheckHTTPResponse(200).DecodeResponse()
+	).DecodeResponse()
 	if err != nil {
 		return err
 	}

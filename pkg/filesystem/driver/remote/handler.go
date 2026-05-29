@@ -69,7 +69,7 @@ func (handler *Driver) List(ctx context.Context, path string, recursive bool) ([
 		bodyReader,
 		request.WithCredential(handler.AuthInstance, int64(signTTL)),
 		request.WithMasterMeta(),
-	).CheckHTTPResponse(200).DecodeResponse()
+	).DecodeResponse()
 	if err != nil {
 		return res, err
 	}
@@ -181,7 +181,7 @@ func (handler *Driver) Delete(ctx context.Context, files []string) ([]string, er
 		request.WithCredential(handler.AuthInstance, int64(signTTL)),
 		request.WithMasterMeta(),
 		request.WithSlaveMeta(handler.Policy.AccessKey),
-	).CheckHTTPResponse(200).GetResponse()
+	).GetResponse()
 	if err != nil {
 		return files, err
 	}

@@ -134,7 +134,7 @@ func (c *slaveController) SendNotification(id, subject string, msg mq.Message) e
 			"PUT",
 			fmt.Sprintf("/api/v3/slave/notification/%s", subject),
 			&body,
-		).CheckHTTPResponse(200).DecodeResponse()
+		).DecodeResponse()
 		if err != nil {
 			return err
 		}
@@ -192,7 +192,7 @@ func (c *slaveController) GetPolicyOauthToken(id string, policyID uint) (string,
 			"GET",
 			fmt.Sprintf("/api/v3/slave/credential/%d", policyID),
 			nil,
-		).CheckHTTPResponse(200).DecodeResponse()
+		).DecodeResponse()
 		if err != nil {
 			return "", err
 		}

@@ -104,7 +104,7 @@ func (node *SlaveNode) Ping(req *serializer.NodePingReq) (*serializer.NodePingRe
 		"POST",
 		"heartbeat",
 		bodyReader,
-	).CheckHTTPResponse(200).DecodeResponse()
+	).DecodeResponse()
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (s *slaveCaller) SendAria2Call(body *serializer.SlaveAria2Call, scope strin
 		"POST",
 		"aria2/"+scope,
 		reqReader,
-	).CheckHTTPResponse(200).DecodeResponse()
+	).DecodeResponse()
 }
 
 func (s *slaveCaller) CreateTask(task *model.Download, options map[string]interface{}) (string, error) {

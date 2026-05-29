@@ -17,9 +17,9 @@ func CreateShare(c *gin.Context) {
 	var service share.ShareCreateService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Create(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -28,9 +28,9 @@ func GetShare(c *gin.Context) {
 	var service share.ShareGetService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.Get(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -38,7 +38,7 @@ func GetShare(c *gin.Context) {
 func GetShareMetadata(c *gin.Context) {
 	var service share.Service
 	res := service.Metadata(c)
-	c.JSON(200, res)
+	respond(c, res)
 }
 
 // ListShare 列出分享
@@ -46,9 +46,9 @@ func ListShare(c *gin.Context) {
 	var service share.ShareListService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.List(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -57,9 +57,9 @@ func SearchShare(c *gin.Context) {
 	var service share.ShareListService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.Search(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -68,9 +68,9 @@ func UpdateShare(c *gin.Context) {
 	var service share.ShareUpdateService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Update(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -79,9 +79,9 @@ func DeleteShare(c *gin.Context) {
 	var service share.Service
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Delete(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -90,9 +90,9 @@ func GetShareDownload(c *gin.Context) {
 	var service share.Service
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.CreateDownloadSession(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -112,10 +112,10 @@ func PreviewShare(c *gin.Context) {
 		}
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -130,10 +130,10 @@ func PreviewShareText(c *gin.Context) {
 		res := service.PreviewContent(ctx, c, true)
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -149,14 +149,14 @@ func PreviewShareReadme(c *gin.Context) {
 		allowFileName := []string{"readme.txt", "readme.md"}
 		fileName := strings.ToLower(path.Base(service.Path))
 		if !util.ContainsString(allowFileName, fileName) {
-			c.JSON(200, serializer.ParamErr("Not a README file", nil))
+			respond(c, serializer.ParamErr("Not a README file", nil))
 			return
 		}
 
 		// 必须是目录分享
 		if shareCtx, ok := c.Get("share"); ok {
 			if !shareCtx.(*model.Share).IsDir {
-				c.JSON(200, serializer.ParamErr("This share has no README file", nil))
+				respond(c, serializer.ParamErr("This share has no README file", nil))
 				return
 			}
 		}
@@ -164,10 +164,10 @@ func PreviewShareReadme(c *gin.Context) {
 		res := service.PreviewContent(ctx, c, true)
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -176,9 +176,9 @@ func GetShareDocPreview(c *gin.Context) {
 	var service share.Service
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.CreateDocPreviewSession(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -187,9 +187,9 @@ func ListSharedFolder(c *gin.Context) {
 	var service share.Service
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.List(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -197,17 +197,17 @@ func ListSharedFolder(c *gin.Context) {
 func SearchSharedFolder(c *gin.Context) {
 	var service share.SearchService
 	if err := c.ShouldBindUri(&service); err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	if err := c.ShouldBindQuery(&service); err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	res := service.Search(c)
-	c.JSON(200, res)
+	respond(c, res)
 }
 
 // ArchiveShare 打包要下载的分享
@@ -215,9 +215,9 @@ func ArchiveShare(c *gin.Context) {
 	var service share.ArchiveService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Archive(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -227,10 +227,10 @@ func ShareThumb(c *gin.Context) {
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.Thumb(c)
 		if res.Code >= 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -239,8 +239,8 @@ func GetUserShare(c *gin.Context) {
 	var service share.ShareUserGetService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.Get(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

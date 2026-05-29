@@ -18,9 +18,9 @@ func AdminSummary(c *gin.Context) {
 	var service admin.NoParamService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Summary()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -29,9 +29,9 @@ func AdminChangeSetting(c *gin.Context) {
 	var service admin.BatchSettingChangeService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Change()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -40,9 +40,9 @@ func AdminGetSetting(c *gin.Context) {
 	var service admin.BatchSettingGet
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Get()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -51,9 +51,9 @@ func AdminGetGroups(c *gin.Context) {
 	var service admin.NoParamService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.GroupList()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -69,7 +69,7 @@ func AdminReloadService(c *gin.Context) {
 		wopi.Init()
 	}
 
-	c.JSON(200, serializer.Response{})
+	respond(c, serializer.Response{})
 }
 
 // AdminSendTestMail 发送测试邮件
@@ -77,9 +77,9 @@ func AdminSendTestMail(c *gin.Context) {
 	var service admin.MailTestService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Send()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -88,9 +88,9 @@ func AdminTestThumbGenerator(c *gin.Context) {
 	var service admin.ThumbGeneratorTestService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Test(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -105,9 +105,9 @@ func AdminTestAria2(c *gin.Context) {
 			res = service.TestSlave()
 		}
 
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -116,9 +116,9 @@ func AdminListPolicy(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Policies()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -127,9 +127,9 @@ func AdminTestPath(c *gin.Context) {
 	var service admin.PathTestService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Test()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -138,9 +138,9 @@ func AdminTestSlave(c *gin.Context) {
 	var service admin.SlaveTestService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Test()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -149,9 +149,9 @@ func AdminAddPolicy(c *gin.Context) {
 	var service admin.AddPolicyService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Add()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -160,9 +160,9 @@ func AdminAddCORS(c *gin.Context) {
 	var service admin.PolicyService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.AddCORS()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -171,9 +171,9 @@ func AdminAddSCF(c *gin.Context) {
 	var service admin.PolicyService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.AddSCF()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -183,9 +183,9 @@ func AdminOAuthURL(policyType string) gin.HandlerFunc {
 		var service admin.PolicyService
 		if err := c.ShouldBindUri(&service); err == nil {
 			res := service.GetOAuth(c, policyType)
-			c.JSON(200, res)
+			respond(c, res)
 		} else {
-			c.JSON(200, ErrorResponse(err))
+			respond(c, ErrorResponse(err))
 		}
 	}
 }
@@ -195,9 +195,9 @@ func AdminGetPolicy(c *gin.Context) {
 	var service admin.PolicyService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Get()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -206,9 +206,9 @@ func AdminDeletePolicy(c *gin.Context) {
 	var service admin.PolicyService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Delete()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -217,9 +217,9 @@ func AdminListGroup(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Groups()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -228,9 +228,9 @@ func AdminAddGroup(c *gin.Context) {
 	var service admin.AddGroupService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Add()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -239,9 +239,9 @@ func AdminDeleteGroup(c *gin.Context) {
 	var service admin.GroupService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Delete()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -250,9 +250,9 @@ func AdminGetGroup(c *gin.Context) {
 	var service admin.GroupService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Get()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -261,9 +261,9 @@ func AdminListUser(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Users()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -272,9 +272,9 @@ func AdminAddUser(c *gin.Context) {
 	var service admin.AddUserService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Add()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -283,9 +283,9 @@ func AdminGetUser(c *gin.Context) {
 	var service admin.UserService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Get()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -294,9 +294,9 @@ func AdminDeleteUser(c *gin.Context) {
 	var service admin.UserBatchService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Delete()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -305,9 +305,9 @@ func AdminBanUser(c *gin.Context) {
 	var service admin.UserService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Ban()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -316,9 +316,9 @@ func AdminListFile(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Files()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -334,10 +334,10 @@ func AdminGetFile(c *gin.Context) {
 		}
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -346,9 +346,9 @@ func AdminDeleteFile(c *gin.Context) {
 	var service admin.FileBatchService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Delete(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -357,9 +357,9 @@ func AdminListShare(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Shares()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -368,9 +368,9 @@ func AdminDeleteShare(c *gin.Context) {
 	var service admin.ShareBatchService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Delete(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -379,9 +379,9 @@ func AdminListDownload(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Downloads()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -390,9 +390,9 @@ func AdminDeleteDownload(c *gin.Context) {
 	var service admin.TaskBatchService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Delete(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -401,9 +401,9 @@ func AdminListTask(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Tasks()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -412,9 +412,9 @@ func AdminDeleteTask(c *gin.Context) {
 	var service admin.TaskBatchService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.DeleteGeneral(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -423,9 +423,9 @@ func AdminCreateImportTask(c *gin.Context) {
 	var service admin.ImportTaskService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Create(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -434,9 +434,9 @@ func AdminListFolders(c *gin.Context) {
 	var service admin.ListFolderService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.List(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -445,9 +445,9 @@ func AdminListNodes(c *gin.Context) {
 	var service admin.AdminListService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Nodes()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -456,9 +456,9 @@ func AdminAddNode(c *gin.Context) {
 	var service admin.AddNodeService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Add()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -467,9 +467,9 @@ func AdminToggleNode(c *gin.Context) {
 	var service admin.ToggleNodeService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Toggle()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -478,9 +478,9 @@ func AdminDeleteNode(c *gin.Context) {
 	var service admin.NodeService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Delete()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -489,8 +489,8 @@ func AdminGetNode(c *gin.Context) {
 	var service admin.NodeService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Get()
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

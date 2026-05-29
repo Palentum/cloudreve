@@ -70,7 +70,6 @@ func (d *Driver) Put(ctx context.Context, file fsctx.FileHeader) error {
 	defer mq.GlobalMQ.Unsubscribe(req.Hash(model.GetSettingByName("siteID")), resChan)
 
 	res, err := d.client.Request("PUT", "task/transfer", bytes.NewReader(body)).
-		CheckHTTPResponse(200).
 		DecodeResponse()
 	if err != nil {
 		return err

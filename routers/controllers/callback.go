@@ -16,9 +16,9 @@ func RemoteCallback(c *gin.Context) {
 	var callbackBody callback.RemoteUploadCallbackService
 	if err := c.ShouldBindJSON(&callbackBody); err == nil {
 		res := callback.ProcessCallback(callbackBody, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -30,7 +30,7 @@ func QiniuCallback(c *gin.Context) {
 		if res.Code != 0 {
 			c.JSON(401, serializer.GeneralUploadCallbackFailed{Error: res.Msg})
 		} else {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
 		c.JSON(401, ErrorResponse(err))
@@ -45,9 +45,9 @@ func OSSCallback(c *gin.Context) {
 			callbackBody.PicInfo = ""
 		}
 		res := callback.ProcessCallback(callbackBody, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -64,9 +64,9 @@ func UpyunCallback(c *gin.Context) {
 			return
 		}
 		res := callback.ProcessCallback(callbackBody, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -75,9 +75,9 @@ func OneDriveCallback(c *gin.Context) {
 	var callbackBody callback.OneDriveCallback
 	if err := c.ShouldBindJSON(&callbackBody); err == nil {
 		res := callbackBody.PreProcess(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -95,7 +95,7 @@ func OneDriveOAuth(c *gin.Context) {
 		redirect.RawQuery = queries.Encode()
 		c.Redirect(303, redirect.String())
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -113,7 +113,7 @@ func GoogleDriveOAuth(c *gin.Context) {
 		redirect.RawQuery = queries.Encode()
 		c.Redirect(303, redirect.String())
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -122,9 +122,9 @@ func COSCallback(c *gin.Context) {
 	var callbackBody callback.COSCallback
 	if err := c.ShouldBindQuery(&callbackBody); err == nil {
 		res := callbackBody.PreProcess(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -133,8 +133,8 @@ func S3Callback(c *gin.Context) {
 	var callbackBody callback.S3Callback
 	if err := c.ShouldBindQuery(&callbackBody); err == nil {
 		res := callbackBody.PreProcess(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

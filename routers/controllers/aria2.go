@@ -14,9 +14,9 @@ func AddAria2URL(c *gin.Context) {
 	var addService aria2.BatchAddURLService
 	if err := c.ShouldBindJSON(&addService); err == nil {
 		res := addService.Add(c, common.URLTask)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -25,9 +25,9 @@ func SelectAria2File(c *gin.Context) {
 	var selectService aria2.SelectFileService
 	if err := c.ShouldBindJSON(&selectService); err == nil {
 		res := selectService.Select(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -42,7 +42,7 @@ func AddAria2Torrent(c *gin.Context) {
 		// 获取种子内容的下载地址
 		res := service.CreateDownloadSession(ctx, c)
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 			return
 		}
 
@@ -53,13 +53,13 @@ func AddAria2Torrent(c *gin.Context) {
 		if err := c.ShouldBindJSON(&addService); err == nil {
 			addService.URL = res.Data.(string)
 			res := addService.Add(c, nil, common.URLTask)
-			c.JSON(200, res)
+			respond(c, res)
 		} else {
-			c.JSON(200, ErrorResponse(err))
+			respond(c, ErrorResponse(err))
 		}
 
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -68,9 +68,9 @@ func CancelAria2Download(c *gin.Context) {
 	var selectService aria2.DownloadTaskService
 	if err := c.ShouldBindUri(&selectService); err == nil {
 		res := selectService.Delete(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -79,9 +79,9 @@ func ListDownloading(c *gin.Context) {
 	var service aria2.DownloadListService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.Downloading(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -90,8 +90,8 @@ func ListFinished(c *gin.Context) {
 	var service aria2.DownloadListService
 	if err := c.ShouldBindQuery(&service); err == nil {
 		res := service.Finished(c, CurrentUser(c))
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

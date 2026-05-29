@@ -144,10 +144,12 @@ func (c *HTTPClient) Request(method, target string, body io.Reader, opts ...Opti
 	return &Response{Err: nil, Response: resp}
 }
 
-// GetResponse 检查响应并获取响应正文
 func (resp *Response) GetResponse() (string, error) {
 	if resp.Err != nil {
 		return "", resp.Err
+	}
+	if resp.Response.Body == nil {
+		return "", errors.New("response body is nil")
 	}
 	respBody, err := ioutil.ReadAll(io.LimitReader(resp.Response.Body, 10<<20)) // 限制 10MB 防止 DoS
 	_ = resp.Response.Body.Close()

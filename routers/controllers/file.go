@@ -22,7 +22,7 @@ func DownloadArchive(c *gin.Context) {
 	if err := c.ShouldBindUri(&service); err == nil {
 		service.DownloadArchived(ctx, c)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -34,9 +34,9 @@ func Archive(c *gin.Context) {
 	var service explorer.ItemIDService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Archive(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -45,9 +45,9 @@ func Compress(c *gin.Context) {
 	var service explorer.ItemCompressService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.CreateCompressTask(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -56,9 +56,9 @@ func Decompress(c *gin.Context) {
 	var service explorer.ItemDecompressService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.CreateDecompressTask(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -72,10 +72,10 @@ func AnonymousGetContent(c *gin.Context) {
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Download(ctx, c)
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -95,10 +95,10 @@ func AnonymousPermLinkDeprecated(c *gin.Context) {
 		}
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -110,7 +110,7 @@ func AnonymousPermLink(c *gin.Context) {
 
 	sourceLinkRaw, ok := c.Get("source_link")
 	if !ok {
-		c.JSON(200, serializer.Err(serializer.CodeFileNotFound, "", nil))
+		respond(c, serializer.Err(serializer.CodeFileNotFound, "", nil))
 		return
 	}
 
@@ -130,7 +130,7 @@ func AnonymousPermLink(c *gin.Context) {
 
 	// 是否有错误发生
 	if res.Code != 0 {
-		c.JSON(200, res)
+		respond(c, res)
 	}
 
 }
@@ -143,9 +143,9 @@ func GetSource(c *gin.Context) {
 	var service explorer.ItemIDService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Sources(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -157,7 +157,7 @@ func Thumb(c *gin.Context) {
 
 	fs, err := filesystem.NewFileSystemFromContext(c)
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodePolicyNotAllowed, err.Error(), err))
+		respond(c, serializer.Err(serializer.CodePolicyNotAllowed, err.Error(), err))
 		return
 	}
 	defer fs.Recycle()
@@ -165,14 +165,14 @@ func Thumb(c *gin.Context) {
 	// 获取文件ID
 	fileID, ok := c.Get("object_id")
 	if !ok {
-		c.JSON(200, serializer.Err(serializer.CodeFileNotFound, "", err))
+		respond(c, serializer.Err(serializer.CodeFileNotFound, "", err))
 		return
 	}
 
 	// 获取缩略图
 	resp, err := fs.GetThumb(ctx, fileID.(uint))
 	if err != nil {
-		c.JSON(200, serializer.Err(serializer.CodeNotSet, "Failed to get thumbnail", err))
+		respond(c, serializer.Err(serializer.CodeNotSet, "Failed to get thumbnail", err))
 		return
 	}
 
@@ -203,10 +203,10 @@ func Preview(c *gin.Context) {
 		}
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -221,10 +221,10 @@ func PreviewText(c *gin.Context) {
 		res := service.PreviewContent(ctx, c, true)
 		// 是否有错误发生
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -237,9 +237,9 @@ func GetDocPreview(c *gin.Context) {
 	var service explorer.FileIDService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.CreateDocPreviewSession(ctx, c, true)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -252,9 +252,9 @@ func CreateDownloadSession(c *gin.Context) {
 	var service explorer.FileIDService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.CreateDownloadSession(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -268,10 +268,10 @@ func Download(c *gin.Context) {
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Download(ctx, c)
 		if res.Code != 0 {
-			c.JSON(200, res)
+			respond(c, res)
 		}
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -284,9 +284,9 @@ func PutContent(c *gin.Context) {
 	var service explorer.FileIDService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.PutContent(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -299,10 +299,10 @@ func FileUpload(c *gin.Context) {
 	var service explorer.UploadService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.LocalUpload(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 		request.BlackHole(c.Request.Body)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 
 	//fileData := fsctx.FileStream{
@@ -361,9 +361,9 @@ func DeleteUploadSession(c *gin.Context) {
 	var service explorer.UploadSessionService
 	if err := c.ShouldBindUri(&service); err == nil {
 		res := service.Delete(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -374,7 +374,7 @@ func DeleteAllUploadSession(c *gin.Context) {
 	defer cancel()
 
 	res := explorer.DeleteAllUploadSession(ctx, c)
-	c.JSON(200, res)
+	respond(c, res)
 }
 
 // GetUploadSession 创建上传会话
@@ -386,9 +386,9 @@ func GetUploadSession(c *gin.Context) {
 	var service explorer.CreateUploadSessionService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Create(ctx, c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }
 
@@ -396,17 +396,17 @@ func GetUploadSession(c *gin.Context) {
 func SearchFile(c *gin.Context) {
 	var service explorer.ItemSearchService
 	if err := c.ShouldBindUri(&service); err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	if err := c.ShouldBindQuery(&service); err != nil {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 		return
 	}
 
 	res := service.Search(c)
-	c.JSON(200, res)
+	respond(c, res)
 }
 
 // CreateFile 创建空白文件
@@ -414,8 +414,8 @@ func CreateFile(c *gin.Context) {
 	var service explorer.SingleFileService
 	if err := c.ShouldBindJSON(&service); err == nil {
 		res := service.Create(c)
-		c.JSON(200, res)
+		respond(c, res)
 	} else {
-		c.JSON(200, ErrorResponse(err))
+		respond(c, ErrorResponse(err))
 	}
 }

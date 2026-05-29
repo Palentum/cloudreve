@@ -2,12 +2,31 @@ package controllers
 
 import (
 	"encoding/json"
+	"net/http"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
+
+// respond 根据 serializer.Response 的 Code 选择 HTTP 状态码写入响应，
+// 与 middleware/common.go 中 httpStatusForCode 保持相同映射逻辑。
+func respond(c *gin.Context, res serializer.Response) {
+	var httpStatus int
+	code := res.Code
+	switch {
+	case code == 0:
+		httpStatus = http.StatusOK
+	case code >= 200 && code < 600:
+		httpStatus = code
+	case code >= 40000 && code < 50000:
+		httpStatus = http.StatusBadRequest
+	default:
+		httpStatus = http.StatusInternalServerError
+	}
+	c.JSON(httpStatus, res)
+}
 
 // ParamErrorMsg 根据Validator返回的错误信息给出错误提示
 func ParamErrorMsg(filed string, tag string) string {

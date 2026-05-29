@@ -73,7 +73,7 @@ func AuthRequired() gin.HandlerFunc {
 			}
 		}
 
-		c.JSON(200, serializer.CheckLogin())
+		respondWithError(c, serializer.CheckLogin())
 		c.Abort()
 	}
 }
