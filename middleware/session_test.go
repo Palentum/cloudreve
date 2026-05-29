@@ -1,14 +1,14 @@
 package middleware
 
 import (
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
+	"github.com/cloudreve/Cloudreve/v3/pkg/util"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
-	"github.com/cloudreve/Cloudreve/v3/pkg/util"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSession(t *testing.T) {
@@ -20,6 +20,37 @@ func TestSession(t *testing.T) {
 		asserts.NotNil(Store)
 		asserts.IsType(emptyFunc(), handler)
 	}
+}
+
+// TestSessionSameSiteDefault 验证当配置 SameSite 值无效时，cookie 默认使用 Lax
+func TestSessionSameSiteDefault(t *testing.T) {
+	asserts := assert.New(t)
+
+	// 保存原始配置
+	originalSameSite := conf.CORSConfig.SameSite
+	defer func() { conf.CORSConfig.SameSite = originalSameSite }()
+
+	// 设置为无效值，模拟配置缺失或被篡改
+	conf.CORSConfig.SameSite = "invalid"
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(Session("test-secret-samesite"))
+	r.GET("/test", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set("key", "value")
+		session.Save()
+		c.String(200, "ok")
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	r.ServeHTTP(rec, req)
+
+	// 验证 Set-Cookie 头包含 SameSite=Lax
+	setCookie := rec.Header().Get("Set-Cookie")
+	asserts.Contains(setCookie, "SameSite=Lax",
+		"当配置 SameSite 无效时应默认使用 Lax")
 }
 
 func emptyFunc() gin.HandlerFunc {

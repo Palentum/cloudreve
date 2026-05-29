@@ -22,7 +22,7 @@ func Session(secret string) gin.HandlerFunc {
 	// Redis设置不为空，且非测试模式时使用Redis
 	Store = sessionstore.NewStore(cache.Store, []byte(secret))
 
-	sameSiteMode := http.SameSiteDefaultMode
+	sameSiteMode := http.SameSiteLaxMode
 	switch strings.ToLower(conf.CORSConfig.SameSite) {
 	case "default":
 		sameSiteMode = http.SameSiteDefaultMode
