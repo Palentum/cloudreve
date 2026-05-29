@@ -38,7 +38,8 @@ func SignRequired(authInstance auth.Auth) gin.HandlerFunc {
 		}
 
 		if err != nil {
-			c.JSON(200, serializer.Err(serializer.CodeCredentialInvalid, err.Error(), err))
+			util.Log().Warning("Failed to verify request signature: %s", err)
+			c.JSON(200, serializer.Err(serializer.CodeCredentialInvalid, "Invalid signature", err))
 			c.Abort()
 			return
 		}
