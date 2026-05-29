@@ -40,7 +40,9 @@ func TestFileSystem_ValidateLegalName(t *testing.T) {
 	asserts.False(fs.ValidateLegalName(ctx, "\\11.txt"))
 	asserts.False(fs.ValidateLegalName(ctx, ""))
 	asserts.False(fs.ValidateLegalName(ctx, "1.tx t "))
-	asserts.True(fs.ValidateLegalName(ctx, "1.tx t"))
+ 	asserts.True(fs.ValidateLegalName(ctx, "1.tx t"))
+	asserts.False(fs.ValidateLegalName(ctx, "1\x00.txt"), "包含 null 字节的文件名应被拒绝")
+	asserts.False(fs.ValidateLegalName(ctx, "\x001.txt"), "以 null 字节开头的文件名应被拒绝")
 }
 
 func TestFileSystem_ValidateCapacity(t *testing.T) {
