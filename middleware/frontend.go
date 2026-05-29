@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"html"
 	"github.com/cloudreve/Cloudreve/v3/bootstrap"
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
@@ -54,10 +55,10 @@ func FrontendFileHandler() gin.HandlerFunc {
 			options := model.GetSettingByNames("siteName", "siteKeywords", "siteScript",
 				"pwa_small_icon")
 			finalHTML := util.Replace(map[string]string{
-				"{siteName}":       options["siteName"],
-				"{siteDes}":        options["siteDes"],
+				"{siteName}":       html.EscapeString(options["siteName"]),
+				"{siteDes}":        html.EscapeString(options["siteDes"]),
 				"{siteScript}":     options["siteScript"],
-				"{pwa_small_icon}": options["pwa_small_icon"],
+				"{pwa_small_icon}": html.EscapeString(options["pwa_small_icon"]),
 			}, fileContent)
 
 			c.Header("Content-Type", "text/html")

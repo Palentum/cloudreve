@@ -95,7 +95,37 @@ func TestFrontendFileHandler(t *testing.T) {
 		cache.Set("setting_pwa_small_icon", "cloudreve", 0)
 
 		TestFunc(c)
-		asserts.True(c.IsAborted())
+ 		asserts.True(c.IsAborted())
+	}
+ 	// XSS 防护 — siteName/siteDes/pwa_small_icon 应被转义，siteScript 保留原始内容
+	{
+		file, _ := util.CreatNestedFile("tests/index_xss.html")
+		htmlContent := "<title>{siteName}</title><meta content=\"{siteDes}\"><link href=\"{pwa_small_icon}\">{siteScript}"
+		file.WriteString(htmlContent)
+		file.Seek(0, 0)
+		defer file.Close()
+		testStatic := &StaticMock{}
+		bootstrap.StaticFS = testStatic
+		testStatic.On("Open", "/index.html").
+			Return(file, nil)
+		TestFunc := FrontendFileHandler()
+		c, _ := gin.CreateTestContext(rec)
+		c.Params = []gin.Param{}
+		c.Request, _ = http.NewRequest("GET", "/", nil)
+		cache.Set("setting_siteName", "<script>alert(1)</script>", 0)
+		cache.Set("setting_siteDes", "\" onload=\"alert(1)", 0)
+		cache.Set("setting_siteScript", "<script>safe</script>", 0)
+		cache.Set("setting_pwa_small_icon", "\" onerror=\"alert(1)", 0)
+		TestFunc(c)
+		body := rec.Body.String()
+		asserts.NotContains(body, "<script>alert(1)</script>",
+			"siteName 中的 script 标签应被转义")
+		asserts.NotContains(body, "\" onload=\"alert(1)",
+			"siteDes 中的属性注入应被转义")
+		asserts.NotContains(body, "\" onerror=\"alert(1)",
+			"pwa_small_icon 中的属性注入应被转义")
+		asserts.Contains(body, "<script>safe</script>",
+			"siteScript 应保留原始 HTML")
 	}
 
 	// 成功且命中静态文件
