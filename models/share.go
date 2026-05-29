@@ -239,6 +239,14 @@ func ListShares(uid uint, page, pageSize int, order string, publicOnly bool) ([]
 	return shares, total
 }
 
+// escapeLike 转义 SQL LIKE 模式中的通配符和转义字符
+func escapeLike(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
+}
+
 // SearchShares 根据关键字搜索分享
 func SearchShares(page, pageSize int, order, keywords string) ([]Share, int) {
 	var (
@@ -250,7 +258,7 @@ func SearchShares(page, pageSize int, order, keywords string) ([]Share, int) {
 	availableList := make([]string, 0, len(keywordList))
 	for i := 0; i < len(keywordList); i++ {
 		if len(keywordList[i]) > 0 {
-			availableList = append(availableList, keywordList[i])
+			availableList = append(availableList, escapeLike(keywordList[i]))
 		}
 	}
 	if len(availableList) == 0 {

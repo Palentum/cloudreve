@@ -309,12 +309,43 @@ func TestListShares(t *testing.T) {
 
 func TestSearchShares(t *testing.T) {
 	asserts := assert.New(t)
-
+	// 空关键词
+	res, total := SearchShares(1, 10, "id", "")
+	asserts.Len(res, 0)
+	asserts.Equal(0, total)
+	// 正常关键词
 	mock.ExpectQuery("SELECT(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 	mock.ExpectQuery("SELECT(.+)").
 		WithArgs("", sqlmock.AnyArg(), "%1%2%").
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
-	res, total := SearchShares(1, 10, "id", "1 2")
+	res, total = SearchShares(1, 10, "id", "1 2")
+	asserts.NoError(mock.ExpectationsWereMet())
+	asserts.Len(res, 1)
+	asserts.Equal(1, total)
+	// 关键词包含 % 应被转义
+	mock.ExpectQuery("SELECT(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectQuery("SELECT(.+)").
+		WithArgs("", sqlmock.AnyArg(), "%50\\%%").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	res, total = SearchShares(1, 10, "id", "50%")
+	asserts.NoError(mock.ExpectationsWereMet())
+	asserts.Len(res, 1)
+	asserts.Equal(1, total)
+	// 关键词包含 _ 应被转义
+	mock.ExpectQuery("SELECT(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectQuery("SELECT(.+)").
+		WithArgs("", sqlmock.AnyArg(), "%file\\_1%").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	res, total = SearchShares(1, 10, "id", "file_1")
+	asserts.NoError(mock.ExpectationsWereMet())
+	asserts.Len(res, 1)
+	asserts.Equal(1, total)
+	// 关键词包含 \ 应被转义
+	mock.ExpectQuery("SELECT(.+)").WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	mock.ExpectQuery("SELECT(.+)").
+		WithArgs("", sqlmock.AnyArg(), "%path\\\\to%").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+	res, total = SearchShares(1, 10, "id", "path\\to")
 	asserts.NoError(mock.ExpectationsWereMet())
 	asserts.Len(res, 1)
 	asserts.Equal(1, total)
