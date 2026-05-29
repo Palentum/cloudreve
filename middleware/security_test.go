@@ -26,8 +26,9 @@ func TestSecurityHeaders(t *testing.T) {
 	a.Equal("nosniff", c.Writer.Header().Get("X-Content-Type-Options"))
 	a.Equal("SAMEORIGIN", c.Writer.Header().Get("X-Frame-Options"))
 	a.Equal("strict-origin-when-cross-origin", c.Writer.Header().Get("Referrer-Policy"))
-	a.Equal("0", c.Writer.Header().Get("X-XSS-Protection"))
-	a.Empty(c.Writer.Header().Get("Strict-Transport-Security"))
+ 	a.Equal("0", c.Writer.Header().Get("X-XSS-Protection"))
+	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "default-src 'self'")
+ 	a.Empty(c.Writer.Header().Get("Strict-Transport-Security"))
 }
 
 func TestSecurityHeadersWithHSTS(t *testing.T) {
