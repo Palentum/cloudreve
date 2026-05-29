@@ -129,8 +129,8 @@ func GetRecursiveChildFolder(dirs []uint, uid uint, includeSelf bool) ([]Folder,
 }
 
 // DeleteFolderByIDs 根据给定ID批量删除目录记录
-func DeleteFolderByIDs(ids []uint) error {
-	result := DB.Where("id in (?)", ids).Unscoped().Delete(&Folder{})
+func DeleteFolderByIDs(ids []uint, uid uint) error {
+	result := DB.Where("id in (?) AND owner_id = ?", ids, uid).Unscoped().Delete(&Folder{})
 	return result.Error
 }
 

@@ -208,7 +208,7 @@ func (fs *FileSystem) Delete(ctx context.Context, dirs, files []uint, force, unl
 		for _, value := range fs.DirTarget {
 			allFolderIDs = append(allFolderIDs, value.ID)
 		}
-		err = model.DeleteFolderByIDs(allFolderIDs)
+		err = model.DeleteFolderByIDs(allFolderIDs, fs.User.ID)
 		if err != nil {
 			return ErrDBDeleteObjects.WithError(err)
 		}

@@ -160,7 +160,7 @@ func TestDeleteFolderByIDs(t *testing.T) {
 		mock.ExpectExec("DELETE(.+)").
 			WillReturnError(errors.New("error"))
 		mock.ExpectRollback()
-		err := DeleteFolderByIDs([]uint{1, 2, 3})
+		err := DeleteFolderByIDs([]uint{1, 2, 3}, 1)
 		asserts.NoError(mock.ExpectationsWereMet())
 		asserts.Error(err)
 	}
@@ -170,7 +170,7 @@ func TestDeleteFolderByIDs(t *testing.T) {
 		mock.ExpectExec("DELETE(.+)").
 			WillReturnResult(sqlmock.NewResult(0, 3))
 		mock.ExpectCommit()
-		err := DeleteFolderByIDs([]uint{1, 2, 3})
+		err := DeleteFolderByIDs([]uint{1, 2, 3}, 1)
 		asserts.NoError(mock.ExpectationsWereMet())
 		asserts.NoError(err)
 	}
