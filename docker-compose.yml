@@ -5,7 +5,10 @@ services:
     image: bitnami/redis:latest
     restart: unless-stopped
     environment:
-      - ALLOW_EMPTY_PASSWORD=yes
+      # Redis 密码：生产环境不应使用无密码模式。
+      # 请在 cloudreve/conf.ini 的 [Redis] 段配置相同密码。
+      - ALLOW_EMPTY_PASSWORD=no
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-change-me-in-production}
     volumes:
       - redis_data:/bitnami/redis/data
 
