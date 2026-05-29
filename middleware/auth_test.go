@@ -780,7 +780,6 @@ func TestIsAdmin(t *testing.T) {
 		testFunc(c)
 		asserts.False(c.IsAborted())
 	}
-
 	// 初始用户，非管理组
 	{
 		c, _ := gin.CreateTestContext(rec)
@@ -790,5 +789,20 @@ func TestIsAdmin(t *testing.T) {
 		c.Set("user", user)
 		testFunc(c)
 		asserts.False(c.IsAborted())
+	}
+	// nil user — 未认证用户
+	{
+		c, _ := gin.CreateTestContext(rec)
+		// 故意不设置 user
+		testFunc(c)
+		asserts.True(c.IsAborted())
+	}
+
+	// 错误类型 — 非 *model.User
+	{
+		c, _ := gin.CreateTestContext(rec)
+		c.Set("user", "not-a-user")
+		testFunc(c)
+		asserts.True(c.IsAborted())
 	}
 }

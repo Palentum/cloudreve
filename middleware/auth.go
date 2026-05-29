@@ -334,15 +334,25 @@ func S3CallbackAuth() gin.HandlerFunc {
 }
 
 // IsAdmin 必须为管理员用户组
-func IsAdmin() gin.HandlerFunc {
+ func IsAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user, _ := c.Get("user")
-		if user.(*model.User).Group.ID != 1 && user.(*model.User).ID != 1 {
+		userRaw, _ := c.Get("user")
+		if userRaw == nil {
 			c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
 			c.Abort()
 			return
 		}
-
+		user, ok := userRaw.(*model.User)
+		if !ok {
+			c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
+			c.Abort()
+			return
+		}
+		if user.Group.ID != 1 && user.ID != 1 {
+			c.JSON(200, serializer.Err(serializer.CodeNoPermissionErr, "", nil))
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }
