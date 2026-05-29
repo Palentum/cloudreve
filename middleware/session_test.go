@@ -27,11 +27,9 @@ func TestSessionSameSiteDefault(t *testing.T) {
 	asserts := assert.New(t)
 
 	// 保存原始配置
-	originalSameSite := conf.CORSConfig.SameSite
-	defer func() { conf.CORSConfig.SameSite = originalSameSite }()
-
-	// 设置为无效值，模拟配置缺失或被篡改
-	conf.CORSConfig.SameSite = "invalid"
+	originalSameSite := conf.SessionConfig.SameSite
+	defer func() { conf.SessionConfig.SameSite = originalSameSite }()
+	conf.SessionConfig.SameSite = "invalid"
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

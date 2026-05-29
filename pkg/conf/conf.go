@@ -54,9 +54,16 @@ type slave struct {
 type redis struct {
 	Network  string
 	Server   string
-	User	 string
+	User     string
 	Password string
 	DB       string
+}
+
+// sessionConfig Session Cookie 独立配置。
+// 从 cors 中拆分出来，因为 Secure 和 SameSite 只作用于 Session Cookie，与 CORS 无关。
+type sessionConfig struct {
+	SameSite string
+	Secure   bool
 }
 
 // 跨域配置
@@ -66,8 +73,6 @@ type cors struct {
 	AllowHeaders     []string
 	AllowCredentials bool
 	ExposeHeaders    []string
-	SameSite         string
-	Secure           bool
 }
 
 var cfg *ini.File
@@ -116,12 +121,32 @@ func Init(path string) {
 		"UnixSocket": UnixConfig,
 		"Redis":      RedisConfig,
 		"CORS":       CORSConfig,
+		"Session":    SessionConfig,
 		"Slave":      SlaveConfig,
 	}
 	for sectionName, sectionStruct := range sections {
 		err = mapSection(sectionName, sectionStruct)
 		if err != nil {
 			util.Log().Panic("Failed to parse config section %q: %s", sectionName, err)
+		}
+	}
+
+	// 向后兼容：如果 [Session] 段未显式设置 SameSite/Secure，从旧 [CORS] 段迁移
+	if cfg.Section("CORS").HasKey("SameSite") && !cfg.Section("Session").HasKey("SameSite") {
+		SessionConfig.SameSite = cfg.Section("CORS").Key("SameSite").String()
+		util.Log().Warning("Session cookie SameSite 已从 [CORS] 段迁移至 [Session] 段，请更新配置文件。")
+	}
+	if cfg.Section("CORS").HasKey("Secure") && !cfg.Section("Session").HasKey("Secure") {
+		SessionConfig.Secure = cfg.Section("CORS").Key("Secure").MustBool()
+		util.Log().Warning("Session cookie Secure 已从 [CORS] 段迁移至 [Session] 段，请更新配置文件。")
+	}
+
+	// 智能检测：当 TLS 已配置但用户未显式设置 Session Secure 时，自动启用。
+	// 若 [CORS] 段曾设置 Secure（已迁移），视为用户显式决策，不自动覆盖。
+	if SSLConfig.CertPath != "" && SSLConfig.KeyPath != "" {
+		if !cfg.Section("Session").HasKey("Secure") && !cfg.Section("CORS").HasKey("Secure") {
+			SessionConfig.Secure = true
+			util.Log().Warning("Session cookie Secure 自动启用（检测到 TLS 证书配置）。如需禁用，请在配置文件中设置 [Session] Secure = false。")
 		}
 	}
 

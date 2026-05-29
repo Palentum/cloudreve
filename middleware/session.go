@@ -23,7 +23,7 @@ func Session(secret string) gin.HandlerFunc {
 	Store = sessionstore.NewStore(cache.Store, []byte(secret))
 
 	sameSiteMode := http.SameSiteLaxMode
-	switch strings.ToLower(conf.CORSConfig.SameSite) {
+	switch strings.ToLower(conf.SessionConfig.SameSite) {
 	case "default":
 		sameSiteMode = http.SameSiteDefaultMode
 	case "none":
@@ -40,7 +40,7 @@ func Session(secret string) gin.HandlerFunc {
 		MaxAge:   60 * 86400,
 		Path:     "/",
 		SameSite: sameSiteMode,
-		Secure:   conf.CORSConfig.Secure,
+		Secure:   conf.SessionConfig.Secure,
 	})
 
 	return sessions.Sessions("cloudreve-session", Store)

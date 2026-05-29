@@ -17,6 +17,12 @@ var DatabaseConfig = &database{
 	UnixSocket: false,
 }
 
+// SessionConfig Session Cookie 配置
+var SessionConfig = &sessionConfig{
+	SameSite: "Lax",
+	Secure:   false,
+}
+
 // SystemConfig 系统公用配置
 var SystemConfig = &system{
 	Debug:       false,
@@ -32,8 +38,6 @@ var CORSConfig = &cors{
 	AllowHeaders:     []string{"Cookie", "X-Cr-Policy", "Authorization", "Content-Length", "Content-Type", "X-Cr-Path", "X-Cr-FileName"},
 	AllowCredentials: false,
 	ExposeHeaders:    nil,
-	SameSite:         "Lax",
-	Secure:           true,
 }
 
 // SlaveConfig 从机配置
