@@ -97,19 +97,16 @@ func (service *UserService) Get() serializer.Response {
 // Add 添加用户
 func (service *AddUserService) Add() serializer.Response {
 	if service.User.ID > 0 {
-
 		user, _ := model.GetUserByID(service.User.ID)
 		if service.Password != "" {
 			user.SetPassword(service.Password)
 		}
-
 		// 只更新必要字段
 		user.Nick = service.User.Nick
 		user.Email = service.User.Email
 		user.GroupID = service.User.GroupID
 		user.Status = service.User.Status
 		user.TwoFactor = service.User.TwoFactor
-
 		// 检查愚蠢操作
 		if user.ID == 1 {
 			if user.GroupID != 1 {
@@ -119,17 +116,26 @@ func (service *AddUserService) Add() serializer.Response {
 				return serializer.Err(serializer.CodeInvalidActionOnDefaultUser, "", nil)
 			}
 		}
-
 		if err := model.DB.Save(&user).Error; err != nil {
 			return serializer.DBErr("Failed to save user record", err)
 		}
 	} else {
-		service.User.SetPassword(service.Password)
-		if err := model.DB.Create(&service.User).Error; err != nil {
+		// 显式构造新用户，避免批量赋值漏洞
+		user := model.NewUser()
+		user.Email = service.User.Email
+		user.Nick = service.User.Nick
+		user.SetPassword(service.Password)
+		user.Status = model.Active
+		if service.User.GroupID > 0 {
+			if _, err := model.GetGroupByID(service.User.GroupID); err == nil {
+				user.GroupID = service.User.GroupID
+			}
+		}
+		if err := model.DB.Create(&user).Error; err != nil {
 			return serializer.DBErr("Failed to create user record", err)
 		}
+		service.User.ID = user.ID
 	}
-
 	return serializer.Response{Data: service.User.ID}
 }
 
