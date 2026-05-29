@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/filesystem/fsctx"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/mholt/archiver/v4"
 )
 
@@ -220,7 +220,7 @@ func (fs *FileSystem) Decompress(ctx context.Context, src, dst, encoding string)
 	tempZipFilePath = filepath.Join(
 		util.RelativePath(model.GetSettingByName("temp_path")),
 		"decompress",
-		fmt.Sprintf("archive_%d.zip", time.Now().UnixNano()),
+		fmt.Sprintf("archive_%s.zip", uuid.Must(uuid.NewV4()).String()),
 	)
 
 	zipFile, err := util.CreatNestedFile(tempZipFilePath)
