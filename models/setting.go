@@ -13,7 +13,7 @@ type Setting struct {
 	gorm.Model
 	Type  string `gorm:"not null"`
 	Name  string `gorm:"unique;not null;index:setting_key"`
-	Value string `gorm:"size:‎65535"`
+	Value string `gorm:"size:65535"`
 }
 
 // IsTrueVal 返回设置的值是否为真
