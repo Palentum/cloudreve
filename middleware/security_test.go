@@ -26,11 +26,13 @@ func TestSecurityHeaders(t *testing.T) {
 	a.Equal("nosniff", c.Writer.Header().Get("X-Content-Type-Options"))
 	a.Equal("SAMEORIGIN", c.Writer.Header().Get("X-Frame-Options"))
 	a.Equal("strict-origin-when-cross-origin", c.Writer.Header().Get("Referrer-Policy"))
- 	a.Equal("0", c.Writer.Header().Get("X-XSS-Protection"))
-	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "connect-src 'self' https:")
-	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "img-src 'self' data: blob: https:")
-	a.Contains(c.Writer.Header().Get("Content-Security-Policy"), "frame-src 'self' https://www.google.com")
- 	a.Empty(c.Writer.Header().Get("Strict-Transport-Security"))
+	a.Equal("0", c.Writer.Header().Get("X-XSS-Protection"))
+	csp := c.Writer.Header().Get("Content-Security-Policy")
+	a.Contains(csp, "connect-src 'self' https:")
+	a.Contains(csp, "img-src 'self' data: blob: https:")
+	a.Contains(csp, "frame-src 'self' https://www.google.com")
+	a.NotContains(csp, "https://storage.googleapis.com")
+	a.Empty(c.Writer.Header().Get("Strict-Transport-Security"))
 }
 
 func TestSecurityHeadersWithHSTS(t *testing.T) {

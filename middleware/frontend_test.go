@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/cloudreve/Cloudreve/v3/bootstrap"
 	"github.com/cloudreve/Cloudreve/v3/pkg/cache"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -95,9 +97,9 @@ func TestFrontendFileHandler(t *testing.T) {
 		cache.Set("setting_pwa_small_icon", "cloudreve", 0)
 
 		TestFunc(c)
- 		asserts.True(c.IsAborted())
+		asserts.True(c.IsAborted())
 	}
- 	// XSS 防护 — siteName/siteDes/pwa_small_icon 应被转义，siteScript 保留原始内容
+	// XSS 防护 — siteName/siteDes/pwa_small_icon 应被转义，siteScript 保留原始内容
 	{
 		file, _ := util.CreatNestedFile("tests/index_xss.html")
 		htmlContent := "<title>{siteName}</title><meta content=\"{siteDes}\"><link href=\"{pwa_small_icon}\">{siteScript}"
@@ -171,4 +173,27 @@ func TestFrontendFileHandler(t *testing.T) {
 		}
 	}
 
+}
+
+func TestInjectSWCleanup(t *testing.T) {
+	asserts := assert.New(t)
+
+	oldVersion := conf.BackendVersion
+	conf.BackendVersion = "3.8.6'\\</script><script>alert(1)</script>"
+	t.Cleanup(func() {
+		conf.BackendVersion = oldVersion
+	})
+
+	withBody := injectSWCleanup("<html><body><main></main></body></html>")
+	asserts.Contains(withBody, "sw_cleanup_ver")
+	asserts.Contains(withBody, `v='3.8.6\'\\\u003C/script\u003E\u003Cscript\u003Ealert(1)\u003C/script\u003E'`)
+	asserts.Contains(withBody, "navigator.serviceWorker.getRegistrations()")
+	asserts.NotContains(withBody, "</script><script>alert(1)")
+	asserts.True(
+		strings.Index(withBody, "sw_cleanup_ver") < strings.Index(withBody, "</body>"),
+		"cleanup script should be injected before closing body",
+	)
+
+	withoutBody := injectSWCleanup("<html></html>")
+	asserts.True(strings.HasSuffix(withoutBody, "</script>"))
 }

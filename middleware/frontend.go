@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"fmt"
-	"html"
 	"github.com/cloudreve/Cloudreve/v3/bootstrap"
 	model "github.com/cloudreve/Cloudreve/v3/models"
 	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/util"
 	"github.com/gin-gonic/gin"
+	"html"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -86,9 +87,8 @@ func FrontendFileHandler() gin.HandlerFunc {
 // 当检测到后端版本变更时，自动注销所有旧 SW 并刷新页面，
 // 解决升级后因旧 SW 缓存导致的白屏问题。
 func injectSWCleanup(html string) string {
-	// 对版本号做 JS 字符串字面量转义，防止注入
-	ver := strings.ReplaceAll(conf.BackendVersion, `\`, `\\`)
-	ver = strings.ReplaceAll(ver, `'`, `\'`)
+	// 作为 JS 字符串字面量注入到 script 标签内，必须同时转义引号和 </script>。
+	ver := template.JSEscapeString(conf.BackendVersion)
 
 	script := fmt.Sprintf(`<script>!function(){try{var k='sw_cleanup_ver',v='%s';if(localStorage.getItem(k)!==v){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(i){return i.unregister()}))}).finally(function(){localStorage.setItem(k,v);window.location.reload()})}else{localStorage.setItem(k,v)}}}catch(e){}}</script>`, ver)
 

@@ -15,7 +15,7 @@ func SecurityHeaders() gin.HandlerFunc {
 		c.Header("X-XSS-Protection", "0")
 		c.Header("Content-Security-Policy",
 			"default-src 'self'; "+
-				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://recaptcha.net https://www.recaptcha.net https://ssl.captcha.qq.com https://storage.googleapis.com; "+
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://recaptcha.net https://www.recaptcha.net https://ssl.captcha.qq.com; "+
 				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self' data: blob: https:; "+
 				"font-src 'self' data:; "+
