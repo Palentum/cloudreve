@@ -26,9 +26,18 @@ func InitRouter() *gin.Engine {
 
 }
 
+func newGinEngine() *gin.Engine {
+	r := gin.New()
+	if conf.SystemConfig.AccessLog {
+		r.Use(gin.Logger())
+	}
+	r.Use(gin.Recovery())
+	return r
+}
+
 // InitSlaveRouter 初始化从机模式路由
 func InitSlaveRouter() *gin.Engine {
-	r := gin.Default()
+	r := newGinEngine()
 	// 全局安全响应头
 	r.Use(middleware.SecurityHeaders())
 	// 跨域相关
@@ -118,7 +127,7 @@ func InitCORS(router *gin.Engine) {
 
 // InitMasterRouter 初始化主机模式路由
 func InitMasterRouter() *gin.Engine {
-	r := gin.Default()
+	r := newGinEngine()
 
 	// 全局安全响应头
 	r.Use(middleware.SecurityHeaders())

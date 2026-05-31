@@ -26,6 +26,7 @@ type system struct {
 	Mode          string `validate:"eq=master|eq=slave"`
 	Listen        string `validate:"required"`
 	Debug         bool
+	AccessLog     bool
 	SessionSecret string
 	HashIDSalt    string
 	GracePeriod   int    `validate:"gte=0"`
@@ -79,6 +80,7 @@ var cfg *ini.File
 
 const defaultConf = `[System]
 Debug = false
+AccessLog = true
 Mode = master
 Listen = :5212
 SessionSecret = {SessionSecret}

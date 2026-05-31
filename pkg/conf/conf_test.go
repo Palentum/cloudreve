@@ -72,6 +72,55 @@ key=value
 	asserts.Equal(OptionOverwrite["key"], "value")
 }
 
+func TestInitAccessLogConfig(t *testing.T) {
+	asserts := assert.New(t)
+	originalAccessLog := SystemConfig.AccessLog
+	defer func() {
+		SystemConfig.AccessLog = originalAccessLog
+	}()
+	SystemConfig.AccessLog = true
+
+	testCase := `
+[System]
+Listen = 3000
+HashIDSalt = 1
+AccessLog = false
+`
+	err := ioutil.WriteFile("testConfAccessLog.ini", []byte(testCase), 0644)
+	defer func() { _ = os.Remove("testConfAccessLog.ini") }()
+	if err != nil {
+		panic(err)
+	}
+	asserts.NotPanics(func() {
+		Init("testConfAccessLog.ini")
+	})
+	asserts.False(SystemConfig.AccessLog)
+}
+
+func TestInitAccessLogDefault(t *testing.T) {
+	asserts := assert.New(t)
+	originalAccessLog := SystemConfig.AccessLog
+	defer func() {
+		SystemConfig.AccessLog = originalAccessLog
+	}()
+	SystemConfig.AccessLog = true
+
+	testCase := `
+[System]
+Listen = 3000
+HashIDSalt = 1
+`
+	err := ioutil.WriteFile("testConfAccessLogDefault.ini", []byte(testCase), 0644)
+	defer func() { _ = os.Remove("testConfAccessLogDefault.ini") }()
+	if err != nil {
+		panic(err)
+	}
+	asserts.NotPanics(func() {
+		Init("testConfAccessLogDefault.ini")
+	})
+	asserts.True(SystemConfig.AccessLog)
+}
+
 func TestMapSection(t *testing.T) {
 	asserts := assert.New(t)
 

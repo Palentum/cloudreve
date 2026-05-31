@@ -26,6 +26,7 @@ var SessionConfig = &sessionConfig{
 // SystemConfig 系统公用配置
 var SystemConfig = &system{
 	Debug:       false,
+	AccessLog:   true,
 	Mode:        "master",
 	Listen:      ":5212",
 	ProxyHeader: "X-Forwarded-For",

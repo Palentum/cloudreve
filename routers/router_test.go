@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,11 +10,63 @@ import (
 	"time"
 
 	model "github.com/cloudreve/Cloudreve/v3/models"
+	"github.com/cloudreve/Cloudreve/v3/pkg/conf"
 	"github.com/cloudreve/Cloudreve/v3/pkg/hashid"
 	"github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestNewGinEngineAccessLogDisabled(t *testing.T) {
+	originalAccessLog := conf.SystemConfig.AccessLog
+	originalWriter := gin.DefaultWriter
+	defer func() {
+		conf.SystemConfig.AccessLog = originalAccessLog
+		gin.DefaultWriter = originalWriter
+	}()
+
+	var output bytes.Buffer
+	gin.DefaultWriter = &output
+	conf.SystemConfig.AccessLog = false
+
+	router := newGinEngine()
+	router.GET("/access-log", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/access-log", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, output.String())
+}
+
+func TestNewGinEngineAccessLogEnabled(t *testing.T) {
+	originalAccessLog := conf.SystemConfig.AccessLog
+	originalWriter := gin.DefaultWriter
+	defer func() {
+		conf.SystemConfig.AccessLog = originalAccessLog
+		gin.DefaultWriter = originalWriter
+	}()
+
+	var output bytes.Buffer
+	gin.DefaultWriter = &output
+	conf.SystemConfig.AccessLog = true
+
+	router := newGinEngine()
+	router.GET("/access-log", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/access-log", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Contains(t, output.String(), "/access-log")
+}
 
 func TestPing(t *testing.T) {
 	asserts := assert.New(t)
