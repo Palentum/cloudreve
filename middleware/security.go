@@ -19,7 +19,7 @@ func SecurityHeaders() gin.HandlerFunc {
 				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self' data: blob: https:; "+
 				"font-src 'self' data:; "+
-				"connect-src 'self' https://www.google.com https://recaptcha.net https://www.recaptcha.net https://ssl.captcha.qq.com https://captcha.tencentcloudapi.com; "+
+				"connect-src 'self' https:; "+
 				"frame-src 'self' https://www.google.com https://recaptcha.net https://www.recaptcha.net")
 
 		if hstsEnabled {
