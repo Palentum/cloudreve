@@ -175,6 +175,44 @@ func TestFrontendFileHandler(t *testing.T) {
 
 }
 
+func TestFrontendFileHandlerServiceWorkerNoStore(t *testing.T) {
+	oldStaticFS := bootstrap.StaticFS
+	t.Cleanup(func() {
+		bootstrap.StaticFS = oldStaticFS
+	})
+
+	indexFile, _ := util.CreatNestedFile("tests/sw_index.html")
+	defer indexFile.Close()
+	_, _ = indexFile.WriteString("<html></html>")
+	_, _ = indexFile.Seek(0, 0)
+
+	serviceWorkerFile, _ := util.CreatNestedFile("tests/service-worker.js")
+	defer serviceWorkerFile.Close()
+	_, _ = serviceWorkerFile.WriteString("self.skipWaiting();")
+	_, _ = serviceWorkerFile.Seek(0, 0)
+
+	testStatic := &StaticMock{}
+	bootstrap.StaticFS = testStatic
+	testStatic.On("Open", "/index.html").Return(indexFile, nil)
+	testStatic.On("Exists", "/", "/service-worker.js").Return(true)
+	testStatic.On("Open", "/service-worker.js").Return(serviceWorkerFile, nil)
+
+	handler := FrontendFileHandler()
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request, _ = http.NewRequest("GET", "/service-worker.js", nil)
+
+	handler(c)
+
+	assert.Contains(
+		t,
+		rec.Header().Get("Cache-Control"),
+		"no-store",
+	)
+	assert.True(t, c.IsAborted())
+	testStatic.AssertExpectations(t)
+}
+
 func TestInjectSWCleanup(t *testing.T) {
 	asserts := assert.New(t)
 

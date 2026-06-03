@@ -74,7 +74,7 @@ func FrontendFileHandler() gin.HandlerFunc {
 		}
 
 		if path == "/service-worker.js" {
-			c.Header("Cache-Control", "public, no-cache")
+			c.Header("Cache-Control", "private, no-cache, no-store, must-revalidate")
 		}
 
 		// 存在的静态文件
