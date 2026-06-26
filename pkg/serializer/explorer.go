@@ -43,6 +43,7 @@ type Object struct {
 	CreateDate    time.Time `json:"create_date"`
 	Key           string    `json:"key,omitempty"`
 	SourceEnabled bool      `json:"source_enabled"`
+	Shared        bool      `json:"shared"`
 }
 
 // PolicySummary 用于前端组件使用的存储策略概况

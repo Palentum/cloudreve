@@ -399,3 +399,29 @@ func TestShare_CheckPassword(t *testing.T) {
 		asserts.False(share.CheckPassword("wrongpassword"))
 	}
 }
+
+func TestListSharedSourceIDs(t *testing.T) {
+	asserts := assert.New(t)
+
+	// 入参为空：不查询，返回空集合
+	{
+		fileSet, folderSet := ListSharedSourceIDs(1, nil, nil)
+		asserts.NoError(mock.ExpectationsWereMet())
+		asserts.Empty(fileSet)
+		asserts.Empty(folderSet)
+	}
+
+	// 命中：文件6 与 目录8 已分享
+	{
+		mock.ExpectQuery("SELECT(.+)shares(.+)").
+			WillReturnRows(sqlmock.NewRows([]string{"source_id", "is_dir"}).AddRow(6, false).AddRow(8, true))
+		fileSet, folderSet := ListSharedSourceIDs(1, []uint{6, 7}, []uint{8, 9})
+		asserts.NoError(mock.ExpectationsWereMet())
+		_, fileShared := fileSet[6]
+		_, folderShared := folderSet[8]
+		asserts.True(fileShared)
+		asserts.True(folderShared)
+		asserts.Len(fileSet, 1)
+		asserts.Len(folderSet, 1)
+	}
+}

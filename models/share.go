@@ -20,7 +20,7 @@ type Share struct {
 	Password        string     // 分享密码，空值为非加密分享
 	IsDir           bool       // 原始资源是否为目录
 	UserID          uint       // 创建用户ID
-	SourceID        uint       // 原始资源ID
+	SourceID        uint       `gorm:"index:source_id"` // 原始资源ID
 	Views           int        // 浏览数
 	Downloads       int        // 下载数
 	RemainDownloads int        // 剩余下载配额，负值标识无限制
@@ -217,6 +217,46 @@ func (share *Share) Delete() error {
 // DeleteShareBySourceIDs 根据原始资源类型和ID删除文件
 func DeleteShareBySourceIDs(sources []uint, isDir bool) error {
 	return DB.Where("source_id in (?) and is_dir = ?", sources, isDir).Delete(&Share{}).Error
+}
+
+// ListSharedSourceIDs 返回 userID 名下、在 fileIDs / folderIDs 中已创建过分享的资源 ID 集合。
+// 文件与目录 ID 空间独立，故分别返回两个集合，由调用方按类型匹配。
+func ListSharedSourceIDs(userID uint, fileIDs, folderIDs []uint) (fileSet, folderSet map[uint]struct{}) {
+	fileSet = make(map[uint]struct{})
+	folderSet = make(map[uint]struct{})
+	if len(fileIDs) == 0 && len(folderIDs) == 0 {
+		return
+	}
+
+	// 仅拼接非空的一侧，避免空切片在 IN (?) 下产生非法/未定义 SQL
+	conditions := make([]string, 0, 2)
+	args := []interface{}{userID}
+	if len(fileIDs) > 0 {
+		conditions = append(conditions, "(is_dir = ? AND source_id IN (?))")
+		args = append(args, false, fileIDs)
+	}
+	if len(folderIDs) > 0 {
+		conditions = append(conditions, "(is_dir = ? AND source_id IN (?))")
+		args = append(args, true, folderIDs)
+	}
+
+	var rows []struct {
+		SourceID uint
+		IsDir    bool
+	}
+	DB.Model(&Share{}).
+		Select("DISTINCT source_id, is_dir").
+		Where("user_id = ? AND ("+strings.Join(conditions, " OR ")+")", args...).
+		Scan(&rows)
+
+	for _, row := range rows {
+		if row.IsDir {
+			folderSet[row.SourceID] = struct{}{}
+		} else {
+			fileSet[row.SourceID] = struct{}{}
+		}
+	}
+	return
 }
 
 // ListShares 列出UID下的分享

@@ -330,6 +330,22 @@ func (fs *FileSystem) listObjects(ctx context.Context, parent string, files []mo
 		shareKey = key
 	}
 
+	// 标记当前用户已创建分享的文件/目录（非分享浏览且为真实登录用户时）
+	var sharedFiles, sharedFolders map[uint]struct{}
+	if shareKey == "" && fs.User != nil && fs.User.ID > 0 {
+		fileIDs := make([]uint, 0, len(files))
+		for _, file := range files {
+			fileIDs = append(fileIDs, file.ID)
+		}
+		folderIDs := make([]uint, 0, len(folders))
+		for _, subFolder := range folders {
+			if subFolder.ID > 0 { // 跳过 Handler 列取构造的无 DB ID 目录
+				folderIDs = append(folderIDs, subFolder.ID)
+			}
+		}
+		sharedFiles, sharedFolders = model.ListSharedSourceIDs(fs.User.ID, fileIDs, folderIDs)
+	}
+
 	// 汇总处理结果
 	objects := make([]serializer.Object, 0, len(files)+len(folders))
 
@@ -347,7 +363,7 @@ func (fs *FileSystem) listObjects(ctx context.Context, parent string, files []mo
 			}
 		}
 
-		objects = append(objects, serializer.Object{
+		newFolder := serializer.Object{
 			ID:         hashid.HashID(subFolder.ID, hashid.FolderID),
 			Name:       subFolder.Name,
 			Path:       processedPath,
@@ -355,7 +371,11 @@ func (fs *FileSystem) listObjects(ctx context.Context, parent string, files []mo
 			Type:       "dir",
 			Date:       subFolder.UpdatedAt,
 			CreateDate: subFolder.CreatedAt,
-		})
+		}
+		if sharedFolders != nil {
+			_, newFolder.Shared = sharedFolders[subFolder.ID]
+		}
+		objects = append(objects, newFolder)
 	}
 
 	for _, file := range files {
@@ -381,6 +401,9 @@ func (fs *FileSystem) listObjects(ctx context.Context, parent string, files []mo
 			}
 			if shareKey != "" {
 				newFile.Key = shareKey
+			}
+			if sharedFiles != nil {
+				_, newFile.Shared = sharedFiles[file.ID]
 			}
 			objects = append(objects, newFile)
 		}

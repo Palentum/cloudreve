@@ -87,10 +87,16 @@ func TestFileSystem_List(t *testing.T) {
 
 	mock.ExpectQuery("SELECT(.+)folder(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(6, "sub_folder1").AddRow(7, "sub_folder2"))
 	mock.ExpectQuery("SELECT(.+)file(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(6, "sub_file1.txt").AddRow(7, "sub_file2.txt"))
+	// 已分享标记：目录6 与 文件6 已分享
+	mock.ExpectQuery("SELECT(.+)shares(.+)").WillReturnRows(sqlmock.NewRows([]string{"source_id", "is_dir"}).AddRow(6, true).AddRow(6, false))
 	objects, err := fs.List(ctx, "/folder", nil)
 	asserts.Len(objects, 4)
 	asserts.NoError(err)
 	asserts.NoError(mock.ExpectationsWereMet())
+	asserts.True(objects[0].Shared)  // 目录6
+	asserts.False(objects[1].Shared) // 目录7
+	asserts.True(objects[2].Shared)  // 文件6
+	asserts.False(objects[3].Shared) // 文件7
 
 	// 成功，子目录包含文件和路径，不使用路径处理钩子，包含分享key
 	// 根目录
@@ -122,6 +128,7 @@ func TestFileSystem_List(t *testing.T) {
 
 	mock.ExpectQuery("SELECT(.+)folder(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "position"}).AddRow(6, "sub_folder1", "/folder").AddRow(7, "sub_folder2", "/folder"))
 	mock.ExpectQuery("SELECT(.+)file(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "dir"}).AddRow(6, "sub_file1.txt", "/folder").AddRow(7, "sub_file2.txt", "/folder"))
+	mock.ExpectQuery("SELECT(.+)shares(.+)").WillReturnRows(sqlmock.NewRows([]string{"source_id", "is_dir"}))
 	objects, err = fs.List(ctx, "/folder", func(s string) string {
 		return "prefix" + s
 	})
@@ -143,6 +150,7 @@ func TestFileSystem_List(t *testing.T) {
 
 	mock.ExpectQuery("SELECT(.+)folder(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "position"}))
 	mock.ExpectQuery("SELECT(.+)file(.+)").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "dir"}).AddRow(6, "sub_file1.txt", "/folder").AddRow(7, "sub_file2.txt", "/folder"))
+	mock.ExpectQuery("SELECT(.+)shares(.+)").WillReturnRows(sqlmock.NewRows([]string{"source_id", "is_dir"}))
 	objects, err = fs.List(ctx, "/folder", func(s string) string {
 		return "prefix" + s
 	})
