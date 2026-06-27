@@ -24,8 +24,8 @@ func migration() {
 	// 确认是否需要执行迁移
 	if !needMigration() {
 		util.Log().Info("Database version fulfilled, skip schema migration.")
+		ensureShareSourceIndex()
 		return
-
 	}
 
 	util.Log().Info("Start initializing database schema...")
@@ -60,9 +60,16 @@ func migration() {
 
 	// 执行数据库升级脚本
 	execUpgradeScripts()
+	ensureShareSourceIndex()
 
 	util.Log().Info("Finish initializing database schema.")
 
+}
+
+func ensureShareSourceIndex() {
+	if err := DB.Model(&Share{}).AddIndex("source_id", "source_id").Error; err != nil {
+		util.Log().Error("无法创建分享源索引: %s", err)
+	}
 }
 
 func addDefaultPolicy() {
